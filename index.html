@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Census Data Collection System - A digital platform for accurate census data collection and management">
+  <title>Census App - Digital Census Collection System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
+</head>
+<body>
+
+<!-- ============ SPLASH SCREEN ============ -->
+<div id="splash-screen" class="splash-screen">
+  <div class="splash-content">
+    <div class="splash-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="40" cy="40" r="38" stroke="white" stroke-width="2" opacity="0.3"/>
+          <rect x="20" y="32" width="12" height="26" rx="2" fill="white" opacity="0.9"/>
+          <rect x="34" y="22" width="12" height="36" rx="2" fill="white"/>
+          <rect x="48" y="28" width="12" height="30" rx="2" fill="white" opacity="0.9"/>
+          <path d="M16 58 H64" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="splash-title">
+        <h1>Census App</h1>
+        <p>Digital Data Collection System</p>
+      </div>
+    </div>
+    <div class="splash-loader">
+      <div class="loader-bar"></div>
+    </div>
+    <p class="splash-tagline">Empowering data-driven decisions</p>
+  </div>
+  <div class="splash-bg-effects">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+</div>
+
+<!-- ============ LOGIN PAGE ============ -->
+<div id="login-page" class="page hidden">
+  <div class="login-container">
+    <div class="login-left">
+      <div class="login-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="32" width="12" height="26" rx="2" fill="white" opacity="0.9"/>
+            <rect x="34" y="22" width="12" height="36" rx="2" fill="white"/>
+            <rect x="48" y="28" width="12" height="30" rx="2" fill="white" opacity="0.9"/>
+            <path d="M16 58 H64" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <h2>Census App</h2>
+          <p>Digital Census Collection</p>
+        </div>
+      </div>
+      <div class="login-info">
+        <h1>Collect. Analyze.<br><span class="gradient-text">Empower.</span></h1>
+        <p>India's modern digital census platform for accurate, real-time household data collection and management.</p>
+        <div class="login-stats">
+          <div class="stat-card">
+            <div class="stat-number">10M+</div>
+            <div class="stat-label">Households Covered</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">500+</div>
+            <div class="stat-label">Enumerators Active</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">99.9%</div>
+            <div class="stat-label">Data Accuracy</div>
+          </div>
+        </div>
+      </div>
+      <div class="left-bg-effects">
+        <div class="left-orb left-orb-1"></div>
+        <div class="left-orb left-orb-2"></div>
+      </div>
+    </div>
+    <div class="login-right">
+      <div class="login-form-container">
+        <!-- Step 1: Phone Number -->
+        <div id="phone-step" class="form-step active">
+          <div class="form-header">
+            <h2>Welcome Back</h2>
+            <p>Enter your registered mobile number to continue</p>
+          </div>
+          <div class="role-selector">
+            <button id="btn-user-role" class="role-btn active" onclick="selectRole('user')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Enumerator
+            </button>
+            <button id="btn-admin-role" class="role-btn" onclick="selectRole('admin')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Admin
+            </button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mobile Number</label>
+            <div class="phone-input-wrapper">
+              <span class="country-code">+91</span>
+              <input type="tel" id="phone-input" class="form-input phone-input" placeholder="Enter 10-digit number" maxlength="10" oninput="validatePhone()">
+            </div>
+            <span id="phone-error" class="error-msg hidden">Please enter a valid 10-digit mobile number</span>
+          </div>
+          <button id="send-otp-btn" class="btn-primary" onclick="sendOTP()" disabled>
+            <span>Send OTP</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+          <p class="form-note">An OTP will be sent to your mobile number for verification</p>
+        </div>
+
+        <!-- Step 2: OTP Verification -->
+        <div id="otp-step" class="form-step">
+          <div class="back-btn-wrap">
+            <button class="back-btn" onclick="goBackToPhone()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              Back
+            </button>
+          </div>
+          <div class="form-header">
+            <h2>Verify OTP</h2>
+            <p id="otp-subtitle">Enter the 6-digit OTP sent to <strong id="display-phone"></strong></p>
+          </div>
+          <div class="otp-container">
+            <input type="text" class="otp-input" maxlength="1" id="otp-0" oninput="otpInput(0)" onkeydown="otpKeydown(event, 0)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-1" oninput="otpInput(1)" onkeydown="otpKeydown(event, 1)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-2" oninput="otpInput(2)" onkeydown="otpKeydown(event, 2)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-3" oninput="otpInput(3)" onkeydown="otpKeydown(event, 3)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-4" oninput="otpInput(4)" onkeydown="otpKeydown(event, 4)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-5" oninput="otpInput(5)" onkeydown="otpKeydown(event, 5)">
+          </div>
+          <span id="otp-error" class="error-msg hidden">Invalid OTP. Please try again.</span>
+          <button class="btn-primary" id="verify-otp-btn" onclick="verifyOTP()">
+            <span>Verify & Continue</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <div class="resend-otp">
+            <span>Didn't receive the OTP?</span>
+            <button id="resend-btn" class="resend-link" onclick="resendOTP()">Resend OTP</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ USER DASHBOARD ============ -->
+<div id="user-dashboard" class="page hidden">
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="8" y="18" width="6" height="14" rx="1.5" fill="white" opacity="0.9"/>
+              <rect x="17" y="10" width="6" height="22" rx="1.5" fill="white"/>
+              <rect x="26" y="14" width="6" height="18" rx="1.5" fill="white" opacity="0.9"/>
+            </svg>
+          </div>
+          <span>Census App</span>
+        </div>
+        <button class="sidebar-close" onclick="toggleSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="sidebar-user">
+        <div class="user-avatar">
+          <span id="user-avatar-text">E</span>
+        </div>
+        <div class="user-info">
+          <div id="sidebar-user-name" class="user-name">Enumerator</div>
+          <div id="sidebar-user-phone" class="user-phone">+91 XXXXXXXXXX</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" onclick="showSection('dashboard-home', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('my-households', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          My Households
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('add-household', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Add Household
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('my-profile', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          My Profile
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="app-header">
+        <button class="menu-btn" onclick="toggleSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="header-title" id="page-title">Dashboard</div>
+        <div class="header-actions">
+          <div class="header-user" onclick="showSection('my-profile', document.querySelector('.nav-item:nth-child(4)'))">
+            <div class="header-avatar">
+              <span id="header-avatar-text">E</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Dashboard Home -->
+      <section id="section-dashboard-home" class="content-section active">
+        <div class="section-header">
+          <div>
+            <h1 id="welcome-msg">Good Morning, Enumerator!</h1>
+            <p class="subtitle" id="user-phone-display">Mobile: +91 XXXXXXXXXX</p>
+          </div>
+          <div class="header-date" id="current-date"></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="total-households">0</div>
+              <div class="stat-desc">Total Households</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="total-members">0</div>
+              <div class="stat-desc">Total Members</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="today-entries">0</div>
+              <div class="stat-desc">Today's Entries</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">Active</div>
+              <div class="stat-desc">Status</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dash-card">
+            <div class="card-header">
+              <h3>Recent Households</h3>
+              <button class="card-link" onclick="showSection('my-households', document.querySelector('.nav-item:nth-child(2)'))">View All</button>
+            </div>
+            <div id="recent-households-list" class="households-preview">
+              <div class="empty-state-small">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <p>No households yet. Add your first one!</p>
+              </div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="card-header">
+              <h3>Quick Actions</h3>
+            </div>
+            <div class="quick-actions">
+              <button class="quick-action-btn" onclick="showSection('add-household', document.querySelector('.nav-item:nth-child(3)'))">
+                <div class="qa-icon qa-blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                </div>
+                <span>Add Household</span>
+              </button>
+              <button class="quick-action-btn" onclick="showSection('my-households', document.querySelector('.nav-item:nth-child(2)'))">
+                <div class="qa-icon qa-green">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </div>
+                <span>View Households</span>
+              </button>
+              <button class="quick-action-btn" onclick="showSection('my-profile', document.querySelector('.nav-item:nth-child(4)'))">
+                <div class="qa-icon qa-purple">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <span>My Profile</span>
+              </button>
+              <button class="quick-action-btn" onclick="logout()">
+                <div class="qa-icon qa-red">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </div>
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- My Households -->
+      <section id="section-my-households" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>My Households</h1>
+            <p class="subtitle">Manage and view all households you've registered</p>
+          </div>
+          <button class="btn-primary-sm" onclick="showSection('add-household', document.querySelector('.nav-item:nth-child(3)'))">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add New
+          </button>
+        </div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="household-search" placeholder="Search by head of household name..." oninput="filterHouseholds()">
+        </div>
+        <div id="households-grid" class="households-grid">
+          <div class="empty-state">
+            <div class="empty-icon">🏠</div>
+            <h3>No Households Added Yet</h3>
+            <p>Start by adding your first household. Click the button above to begin.</p>
+            <button class="btn-primary" onclick="showSection('add-household', document.querySelector('.nav-item:nth-child(3)'))">
+              <span>Add First Household</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Add Household -->
+      <section id="section-add-household" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>Add New Household</h1>
+            <p class="subtitle">Fill in the household head details and add members</p>
+          </div>
+        </div>
+        <div class="form-wizard">
+          <div class="wizard-steps">
+            <div class="wizard-step active" id="wstep-1">
+              <div class="step-num">1</div>
+              <span>Head of Household</span>
+            </div>
+            <div class="wizard-divider"></div>
+            <div class="wizard-step" id="wstep-2">
+              <div class="step-num">2</div>
+              <span>Personal Details</span>
+            </div>
+            <div class="wizard-divider"></div>
+            <div class="wizard-step" id="wstep-3">
+              <div class="step-num">3</div>
+              <span>Location</span>
+            </div>
+            <div class="wizard-divider"></div>
+            <div class="wizard-step" id="wstep-4">
+              <div class="step-num">4</div>
+              <span>Members</span>
+            </div>
+          </div>
+
+          <!-- Step 1: Head of Household -->
+          <div class="wizard-content" id="wcontent-1">
+            <div class="form-card">
+              <div class="form-card-header">
+                <h3>Head of Household Information</h3>
+                <p>Enter basic information about the head of household</p>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Full Name *</label>
+                  <input type="text" id="head-name" class="form-input" placeholder="Enter full name">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Relationship to Head</label>
+                  <input type="text" class="form-input" value="Head" disabled>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Date of Birth *</label>
+                  <input type="date" id="head-dob" class="form-input">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Age *</label>
+                  <input type="number" id="head-age" class="form-input" placeholder="Age in years" min="0" max="150">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Aadhaar Number</label>
+                  <input type="text" id="head-aadhaar" class="form-input" placeholder="12-digit Aadhaar number" maxlength="12">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Mobile Number</label>
+                  <input type="tel" id="head-mobile" class="form-input" placeholder="10-digit mobile number" maxlength="10">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Gender *</label>
+                  <select id="head-gender" class="form-select">
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Marital Status</label>
+                  <select id="head-marital" class="form-select">
+                    <option value="">Select Status</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Widowed">Widowed</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Separated">Separated</option>
+                  </select>
+                </div>
+              </div>
+              <div class="wizard-nav">
+                <div></div>
+                <button class="btn-primary" onclick="nextStep(1)">
+                  <span>Next: Personal Details</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Personal Details -->
+          <div class="wizard-content hidden" id="wcontent-2">
+            <div class="form-card">
+              <div class="form-card-header">
+                <h3>Education & Employment</h3>
+                <p>Enter education and occupation details</p>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Education Level</label>
+                  <select id="head-education" class="form-select">
+                    <option value="">Select Education Level</option>
+                    <option value="Illiterate">Illiterate</option>
+                    <option value="Primary">Primary (1-5)</option>
+                    <option value="Middle">Middle (6-8)</option>
+                    <option value="Secondary">Secondary (9-10)</option>
+                    <option value="Higher Secondary">Higher Secondary (11-12)</option>
+                    <option value="Diploma">Diploma</option>
+                    <option value="Graduate">Graduate</option>
+                    <option value="Post Graduate">Post Graduate</option>
+                    <option value="Doctorate">Doctorate</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Employment Sector</label>
+                  <select id="head-employment" class="form-select">
+                    <option value="">Select Sector</option>
+                    <option value="Agriculture">Agriculture</option>
+                    <option value="Government">Government</option>
+                    <option value="Private">Private</option>
+                    <option value="Self-Employed">Self-Employed</option>
+                    <option value="Business">Business</option>
+                    <option value="Student">Student</option>
+                    <option value="Unemployed">Unemployed</option>
+                    <option value="Retired">Retired</option>
+                    <option value="Homemaker">Homemaker</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Occupation</label>
+                  <input type="text" id="head-occupation" class="form-input" placeholder="Enter occupation">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Traditional Occupation</label>
+                  <input type="text" id="head-trad-occupation" class="form-input" placeholder="Enter traditional occupation (if any)">
+                </div>
+              </div>
+              <div class="wizard-nav">
+                <button class="btn-secondary" onclick="prevStep(2)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                  <span>Previous</span>
+                </button>
+                <button class="btn-primary" onclick="nextStep(2)">
+                  <span>Next: Location</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Location -->
+          <div class="wizard-content hidden" id="wcontent-3">
+            <div class="form-card">
+              <div class="form-card-header">
+                <h3>Location Details</h3>
+                <p>Enter address and location information</p>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Country</label>
+                  <select id="head-country" class="form-select">
+                    <option value="India">India</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">State</label>
+                  <select id="head-state" class="form-select" onchange="populateDistricts()">
+                    <option value="">Select State</option>
+                    <option value="Andhra Pradesh">Andhra Pradesh</option>
+                    <option value="Telangana">Telangana</option>
+                    <option value="Karnataka">Karnataka</option>
+                    <option value="Tamil Nadu">Tamil Nadu</option>
+                    <option value="Kerala">Kerala</option>
+                    <option value="Maharashtra">Maharashtra</option>
+                    <option value="Gujarat">Gujarat</option>
+                    <option value="Rajasthan">Rajasthan</option>
+                    <option value="Madhya Pradesh">Madhya Pradesh</option>
+                    <option value="Uttar Pradesh">Uttar Pradesh</option>
+                    <option value="Bihar">Bihar</option>
+                    <option value="West Bengal">West Bengal</option>
+                    <option value="Odisha">Odisha</option>
+                    <option value="Punjab">Punjab</option>
+                    <option value="Haryana">Haryana</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">District</label>
+                  <input type="text" id="head-district" class="form-input" placeholder="Enter district">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Taluk / Mandal</label>
+                  <input type="text" id="head-taluk" class="form-input" placeholder="Enter taluk / mandal">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nagara / Town</label>
+                  <input type="text" id="head-nagara" class="form-input" placeholder="Enter nagara / town">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Ward / Village</label>
+                  <input type="text" id="head-ward" class="form-input" placeholder="Enter ward / village">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Pincode</label>
+                  <input type="text" id="head-pincode" class="form-input" placeholder="6-digit pincode" maxlength="6">
+                </div>
+              </div>
+              <div class="wizard-nav">
+                <button class="btn-secondary" onclick="prevStep(3)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                  <span>Previous</span>
+                </button>
+                <button class="btn-primary" onclick="nextStep(3)">
+                  <span>Next: Add Members</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Members -->
+          <div class="wizard-content hidden" id="wcontent-4">
+            <div class="form-card">
+              <div class="form-card-header">
+                <h3>Household Members</h3>
+                <p>Add all members of this household (besides the head)</p>
+              </div>
+              <div id="members-list"></div>
+              <button class="btn-add-member" onclick="addMemberForm()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Member
+              </button>
+              <div class="wizard-nav">
+                <button class="btn-secondary" onclick="prevStep(4)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                  <span>Previous</span>
+                </button>
+                <button class="btn-success" onclick="submitHousehold()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Submit Household</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- My Profile -->
+      <section id="section-my-profile" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>My Profile</h1>
+            <p class="subtitle">Your enumerator account details</p>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div class="profile-avatar-large">
+            <span id="profile-avatar-letter">E</span>
+          </div>
+          <div class="profile-details">
+            <div class="profile-badge">Enumerator</div>
+            <h2 id="profile-name">Enumerator</h2>
+            <p id="profile-phone" class="profile-phone">+91 XXXXXXXXXX</p>
+          </div>
+          <div class="profile-stats">
+            <div class="p-stat">
+              <div class="p-stat-val" id="profile-households">0</div>
+              <div class="p-stat-label">Households</div>
+            </div>
+            <div class="p-stat">
+              <div class="p-stat-val" id="profile-members">0</div>
+              <div class="p-stat-label">Members</div>
+            </div>
+            <div class="p-stat">
+              <div class="p-stat-val">Active</div>
+              <div class="p-stat-label">Status</div>
+            </div>
+          </div>
+          <button class="btn-danger" onclick="logout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Logout
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ============ ADMIN DASHBOARD ============ -->
+<div id="admin-dashboard" class="page hidden">
+  <div class="app-layout">
+    <!-- Admin Sidebar -->
+    <aside class="sidebar admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="8" y="18" width="6" height="14" rx="1.5" fill="white" opacity="0.9"/>
+              <rect x="17" y="10" width="6" height="22" rx="1.5" fill="white"/>
+              <rect x="26" y="14" width="6" height="18" rx="1.5" fill="white" opacity="0.9"/>
+            </svg>
+          </div>
+          <span>Census Admin</span>
+        </div>
+        <button class="sidebar-close" onclick="toggleAdminSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="sidebar-user">
+        <div class="user-avatar admin-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="user-info">
+          <div class="user-name">Administrator</div>
+          <div id="admin-phone-display" class="user-phone">+91 XXXXXXXXXX</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" onclick="showAdminSection('admin-overview', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Overview
+        </a>
+        <a href="#" class="nav-item" onclick="showAdminSection('admin-households', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          All Households
+        </a>
+        <a href="#" class="nav-item" onclick="showAdminSection('admin-enumerators', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Enumerators
+        </a>
+        <a href="#" class="nav-item" onclick="showAdminSection('admin-reports', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Reports
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="admin-sidebar-overlay" onclick="toggleAdminSidebar()"></div>
+
+    <!-- Admin Main Content -->
+    <main class="main-content">
+      <header class="app-header admin-header">
+        <button class="menu-btn" onclick="toggleAdminSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="header-title" id="admin-page-title">Admin Overview</div>
+        <div class="header-actions">
+          <div class="admin-badge">ADMIN</div>
+        </div>
+      </header>
+
+      <!-- Admin Overview -->
+      <section id="section-admin-overview" class="content-section active">
+        <div class="section-header">
+          <div>
+            <h1>Admin Dashboard</h1>
+            <p class="subtitle">Census data management overview</p>
+          </div>
+          <div class="header-date" id="admin-current-date"></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="admin-total-households">0</div>
+              <div class="stat-desc">Total Households</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="admin-total-members">0</div>
+              <div class="stat-desc">Total Members</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="admin-total-enumerators">0</div>
+              <div class="stat-desc">Enumerators</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="admin-today-entries">0</div>
+              <div class="stat-desc">Today's Entries</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dash-card">
+            <div class="card-header">
+              <h3>Recent Household Entries</h3>
+              <button class="card-link" onclick="showAdminSection('admin-households', document.querySelector('#admin-sidebar .nav-item:nth-child(2)'))">View All</button>
+            </div>
+            <div id="admin-recent-list" class="households-preview">
+              <div class="empty-state-small">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <p>No data yet</p>
+              </div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="card-header">
+              <h3>Data Distribution</h3>
+            </div>
+            <div class="admin-chart-area" id="admin-chart">
+              <div class="chart-placeholder">
+                <div class="chart-bars">
+                  <div class="chart-bar" style="height:60%"><span>HH</span></div>
+                  <div class="chart-bar" style="height:80%"><span>M</span></div>
+                  <div class="chart-bar" style="height:45%"><span>E</span></div>
+                  <div class="chart-bar" style="height:90%"><span>R</span></div>
+                </div>
+                <div class="chart-label">Census Activity Overview</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin All Households -->
+      <section id="section-admin-households" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>All Households</h1>
+            <p class="subtitle">Complete database of all registered households</p>
+          </div>
+        </div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="admin-search" placeholder="Search households..." oninput="filterAdminHouseholds()">
+        </div>
+        <div id="admin-households-grid" class="households-grid">
+          <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <h3>No Households Recorded Yet</h3>
+            <p>Household data will appear here once enumerators start submitting data.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin Enumerators -->
+      <section id="section-admin-enumerators" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>Enumerators</h1>
+            <p class="subtitle">List of all active enumerators in the system</p>
+          </div>
+        </div>
+        <div id="enumerators-list" class="enumerators-grid">
+          <div class="empty-state">
+            <div class="empty-icon">👥</div>
+            <h3>No Enumerators Yet</h3>
+            <p>Enumerators will appear here once they log in.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin Reports -->
+      <section id="section-admin-reports" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>Reports</h1>
+            <p class="subtitle">Census data analytics and reports</p>
+          </div>
+        </div>
+        <div class="reports-grid">
+          <div class="report-card">
+            <div class="report-icon">📊</div>
+            <h3>Household Summary</h3>
+            <p>Total households registered across all enumerators</p>
+            <div class="report-value" id="rpt-households">0</div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon">👨‍👩‍👧‍👦</div>
+            <h3>Population Count</h3>
+            <p>Total individuals recorded in the census</p>
+            <div class="report-value" id="rpt-population">0</div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon">👤</div>
+            <h3>Average Household Size</h3>
+            <p>Average number of members per household</p>
+            <div class="report-value" id="rpt-avg-size">0</div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon">🌍</div>
+            <h3>States Covered</h3>
+            <p>Number of states with census data</p>
+            <div class="report-value" id="rpt-states">0</div>
+          </div>
+        </div>
+        <div class="export-section">
+          <h3>Export Data</h3>
+          <div class="export-btns">
+            <button class="btn-export" onclick="exportCSV()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              Export as CSV
+            </button>
+            <button class="btn-export" onclick="exportJSON()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Export as JSON
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ============ HOUSEHOLD DETAIL MODAL ============ -->
+<div id="household-modal" class="modal-overlay hidden">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h2 id="modal-title">Household Details</h2>
+      <button class="modal-close" onclick="closeHouseholdModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="modal-content" class="modal-body"></div>
+  </div>
+</div>
+
+<!-- ============ TOAST NOTIFICATION ============ -->
+<div id="toast" class="toast hidden">
+  <div class="toast-icon"></div>
+  <div class="toast-message"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
