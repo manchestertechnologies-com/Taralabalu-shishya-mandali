@@ -51,21 +51,30 @@ let enumeratorsDB = [];
 let isOnline      = false;
 
 // ── INIT ───────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
-  try { isOnline = initSupabase(); } catch(e) { console.error(e); }
-  try { loadDB(); }    catch(e) { console.error(e); }
-  try { updateDate(); } catch(e) { console.error(e); }
+function initApp() {
+  try { isOnline = initSupabase(); } catch(e) { console.error('Supabase init error:', e); }
+  try { loadDB(); }    catch(e) { console.error('Load DB error:', e); }
+  try { updateDate(); } catch(e) { console.error('Update date error:', e); }
   runSplash(); // always runs — no matter what
-});
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 function runSplash() {
   setTimeout(() => {
     const splash = document.getElementById('splash-screen');
-    splash.style.transition = 'opacity 0.6s ease';
-    splash.style.opacity    = '0';
+    const loginPage = document.getElementById('login-page');
+    if (splash) {
+      splash.style.transition = 'opacity 0.6s ease';
+      splash.style.opacity    = '0';
+    }
     setTimeout(() => {
-      splash.classList.add('hidden');
-      document.getElementById('login-page').classList.remove('hidden');
+      if (splash) splash.classList.add('hidden');
+      if (loginPage) loginPage.classList.remove('hidden');
     }, 600);
   }, 2600);
 }
