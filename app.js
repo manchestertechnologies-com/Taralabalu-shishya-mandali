@@ -5,8 +5,8 @@
    ===================================================== */
 
 // ── SUPABASE CONFIG (FILL IN YOUR KEYS) ───────────────
-const SUPABASE_URL      = 'YOUR_PROJECT_URL_HERE';        // e.g. https://abcd.supabase.co
-const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY_HERE';   // eyJ...
+const SUPABASE_URL      = 'https://pkvlongnjdfojkrttcjl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrdmxvbmduamRmb2prcnR0Y2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Njc5NTgsImV4cCI6MjA5NjE0Mzk1OH0.kjLoJ9hBR8XbxLpuiPCZ0viDhPywPR_AGLJ7zxhXi-0';
 
 // ── CONSTANTS ──────────────────────────────────────────
 const USER_OTP  = '123456';
