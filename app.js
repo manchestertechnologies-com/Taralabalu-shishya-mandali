@@ -15,30 +15,31 @@ const ADMIN_OTP = '654321';
 // ── Supabase Client (loaded via CDN in index.html) ────
 let supabase = null;
 
-function initSupabase() {
+function loadSupabaseSDK() {
   if (SUPABASE_URL === 'YOUR_PROJECT_URL_HERE') {
-    console.warn('⚠️ Supabase not configured. Running offline (localStorage).');
-    return false;
+    console.warn('⚠️ Supabase not configured. Running offline.');
+    return;
   }
-  try {
-    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-      console.warn('Supabase CDN not loaded yet — retrying in 800ms...');
-      setTimeout(() => {
-        try {
-          supabase  = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-          isOnline  = true;
-          console.log('✅ Supabase connected (late init)');
-        } catch(e) { console.error('Late Supabase init failed:', e); }
-      }, 800);
-      return false;
+  const script = document.createElement('script');
+  script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+  script.async = true;
+  script.onload = () => {
+    try {
+      if (window.supabase && window.supabase.createClient) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        isOnline = true;
+        console.log('✅ Supabase connected dynamically');
+      } else {
+        console.warn('Supabase global not found.');
+      }
+    } catch(e) {
+      console.error('Supabase init failed:', e);
     }
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('✅ Supabase connected');
-    return true;
-  } catch(e) {
-    console.error('Supabase init failed:', e);
-    return false;
-  }
+  };
+  script.onerror = () => {
+    console.warn('⚠️ Supabase CDN failed to load. Running offline (localStorage).');
+  };
+  document.head.appendChild(script);
 }
 
 // ── STATE ──────────────────────────────────────────────
@@ -52,10 +53,10 @@ let isOnline      = false;
 
 // ── INIT ───────────────────────────────────────────────
 function initApp() {
-  try { isOnline = initSupabase(); } catch(e) { console.error('Supabase init error:', e); }
   try { loadDB(); }    catch(e) { console.error('Load DB error:', e); }
   try { updateDate(); } catch(e) { console.error('Update date error:', e); }
   runSplash(); // always runs — no matter what
+  loadSupabaseSDK();
 }
 
 if (document.readyState === 'loading') {
@@ -806,9 +807,12 @@ function closeHouseholdModal() {
   document.body.style.overflow = '';
 }
 
-document.getElementById('household-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeHouseholdModal();
-});
+const modalEl = document.getElementById('household-modal');
+if (modalEl) {
+  modalEl.addEventListener('click', function(e) {
+    if (e.target === this) closeHouseholdModal();
+  });
+}
 
 // ── EXPORT ─────────────────────────────────────────────
 async function exportCSV() {
@@ -877,5 +881,8 @@ style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
 document.head.appendChild(style);
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !document.getElementById('household-modal').classList.contains('hidden')) closeHouseholdModal();
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('household-modal');
+    if (modal && !modal.classList.contains('hidden')) closeHouseholdModal();
+  }
 });
