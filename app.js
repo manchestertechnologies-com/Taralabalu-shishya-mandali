@@ -17,11 +17,23 @@ let supabase = null;
 
 function initSupabase() {
   if (SUPABASE_URL === 'YOUR_PROJECT_URL_HERE') {
-    console.warn('⚠️ Supabase not configured. Running in offline mode (localStorage).');
+    console.warn('⚠️ Supabase not configured. Running offline (localStorage).');
     return false;
   }
   try {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      console.warn('Supabase CDN not loaded yet — retrying in 800ms...');
+      setTimeout(() => {
+        try {
+          supabase  = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          isOnline  = true;
+          console.log('✅ Supabase connected (late init)');
+        } catch(e) { console.error('Late Supabase init failed:', e); }
+      }, 800);
+      return false;
+    }
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('✅ Supabase connected');
     return true;
   } catch(e) {
     console.error('Supabase init failed:', e);
@@ -30,20 +42,20 @@ function initSupabase() {
 }
 
 // ── STATE ──────────────────────────────────────────────
-let currentRole  = 'user';
-let currentPhone = '';
-let memberCount  = 0;
-let currentStep  = 1;
+let currentRole   = 'user';
+let currentPhone  = '';
+let memberCount   = 0;
+let currentStep   = 1;
 let householdsDB  = [];
 let enumeratorsDB = [];
-let isOnline      = false;   // true when Supabase is configured
+let isOnline      = false;
 
 // ── INIT ───────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  isOnline = initSupabase();
-  loadDB();
-  updateDate();
-  runSplash();
+  try { isOnline = initSupabase(); } catch(e) { console.error(e); }
+  try { loadDB(); }    catch(e) { console.error(e); }
+  try { updateDate(); } catch(e) { console.error(e); }
+  runSplash(); // always runs — no matter what
 });
 
 function runSplash() {
