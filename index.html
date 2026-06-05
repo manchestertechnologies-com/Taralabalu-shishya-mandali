@@ -122,38 +122,7 @@
       100% { opacity: 1; transform: scale(1); }
     }
 
-    /* Custom cursor dot & outline styling (desktop only) */
-    #custom-cursor-dot {
-      width: 8px;
-      height: 8px;
-      background-color: #00b4d8;
-      border-radius: 50%;
-      position: fixed;
-      pointer-events: none;
-      z-index: 10000000;
-      transform: translate(-50%, -50%);
-      transition: width 0.2s, height 0.2s;
-      display: block;
-    }
-    #custom-cursor-outline {
-      width: 32px;
-      height: 32px;
-      border: 2px solid #ff9f00;
-      border-radius: 50%;
-      position: fixed;
-      pointer-events: none;
-      z-index: 9999999;
-      transform: translate(-50%, -50%);
-      transition: border-color 0.2s, width 0.2s, height 0.2s;
-      display: block;
-    }
-    
-    /* Disable custom cursor on mobile touchscreens */
-    @media (hover: none) and (pointer: coarse) {
-      #custom-cursor-dot, #custom-cursor-outline {
-        display: none !important;
-      }
-    }
+
 
     /* Mutt-themed html loading screen to prevent initial white screen flash */
     #html-loader {
@@ -212,90 +181,10 @@
   <!-- Watermark Element -->
   <div id="watermark-overlay"></div>
 
-  <!-- Custom Cursor Elements -->
-  <div id="custom-cursor-dot"></div>
-  <div id="custom-cursor-outline"></div>
+
 
   <!-- Theme and Watermark Script -->
   <script>
-    // ── CUSTOM INTERACTIVE CURSOR ────────────────────────
-    var cursorDot = document.getElementById('custom-cursor-dot');
-    var cursorOutline = document.getElementById('custom-cursor-outline');
-    
-    var mouseX = 0, mouseY = 0;
-    var outlineX = 0, outlineY = 0;
-    var isHovering = false;
-
-    window.addEventListener('mousemove', function(e) {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      if (cursorDot) {
-        cursorDot.style.left = mouseX + 'px';
-        cursorDot.style.top = mouseY + 'px';
-      }
-    });
-
-    // Smooth outline follow using lerp
-    function animateCursor() {
-      var dx = mouseX - outlineX;
-      var dy = mouseY - outlineY;
-      outlineX += dx * 0.15;
-      outlineY += dy * 0.15;
-
-      if (cursorOutline) {
-        cursorOutline.style.left = outlineX + 'px';
-        cursorOutline.style.top = outlineY + 'px';
-      }
-      requestAnimationFrame(animateCursor);
-    }
-    requestAnimationFrame(animateCursor);
-
-    // Expand cursor ring on click / hover
-    window.addEventListener('mousedown', function() {
-      if (cursorOutline) {
-        cursorOutline.style.width = '24px';
-        cursorOutline.style.height = '24px';
-      }
-    });
-    window.addEventListener('mouseup', function() {
-      if (cursorOutline) {
-        cursorOutline.style.width = isHovering ? '44px' : '32px';
-        cursorOutline.style.height = isHovering ? '44px' : '32px';
-      }
-    });
-
-    // Detect if hovering over clickable canvas objects/buttons
-    setInterval(function() {
-      try {
-        var activeEl = document.activeElement;
-        // Check if cursor is pointer (meaning canvas is hovering a button)
-        var canvas = document.querySelector('canvas');
-        if (canvas) {
-          var cursorType = window.getComputedStyle(canvas).cursor;
-          if (cursorType === 'pointer' && !isHovering) {
-            isHovering = true;
-            if (cursorOutline) {
-              cursorOutline.style.width = '44px';
-              cursorOutline.style.height = '44px';
-              cursorOutline.style.borderColor = '#00b4d8';
-            }
-            if (cursorDot) {
-              cursorDot.style.backgroundColor = '#ff9f00';
-            }
-          } else if (cursorType !== 'pointer' && isHovering) {
-            isHovering = false;
-            if (cursorOutline) {
-              cursorOutline.style.width = '32px';
-              cursorOutline.style.height = '32px';
-              cursorOutline.style.borderColor = '#ff9f00';
-            }
-            if (cursorDot) {
-              cursorDot.style.backgroundColor = '#00b4d8';
-            }
-          }
-        }
-      } catch (e) {}
-    }, 100);
 
 
     // ── INTERACTIVE CANVAS PARTICLES ──────────────────────
