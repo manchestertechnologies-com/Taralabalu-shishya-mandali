@@ -16,6 +16,26 @@
   -->
   <base href="/Taralabalu-shishya-mandali/">
 
+  <script>
+    // Programmatically clear service worker and cache storage to prevent caching issues
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister();
+          console.log('Service worker unregistered');
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (var i = 0; i < names.length; i++) {
+          caches.delete(names[i]);
+          console.log('Cache storage cleared:', names[i]);
+        }
+      });
+    }
+  </script>
+
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Taralabalu Shishya Mandali Platform.">
@@ -955,6 +975,6 @@
     })();
   </script>
 
-  <script src="flutter_bootstrap.js?v=108" async></script>
+  <script src="flutter_bootstrap.js?v=109" async></script>
 </body>
 </html>
