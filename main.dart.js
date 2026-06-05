@@ -30722,42 +30722,21 @@ case 6:case 1:return A.x(q,r)
 case 2:return A.w(o.at(-1),r)}})
 return A.y($async$rZ,r)},
 T5(a,b,c){return A.b_s(a,b,c)},
-b_s(a,b,c){var s=0,r=A.z(t.T),q,p=2,o=[],n,m,l,k,j,i,h,g,f,e
+b_s(a,b,c){var s=0,r=A.z(t.T),q,p=2,o=[]
 var $async$T5=A.v(function(d,a0){if(d===1){o.push(a0)
 s=p}for(;;)switch(s){case 0:p=4
-i=$.aIZ()
-h=i.gkh().c
-h=h==null?null:h.r
-g=h==null?null:h.a
-n=g==null?"anonymous":g
-m=Date.now()
-l=A.j(n)+"/"+b+"/"+c+"_"+A.j(m)+".jpg"
-i=i.at
-i===$&&A.a()
 s=7
-return A.o(i.pM("profile-images").EJ(l,a,B.Jl),$async$T5)
-case 7:i=i.pM("profile-images")
-k=A.dT(i.a+"/object/public/"+(i.c+"/"+l),0,null).tW(null).gni()
-q=k
+var promise = (window.blobToBase64Promises && window.blobToBase64Promises[a]) || Promise.resolve((window.blobToBase64Map && window.blobToBase64Map[a]) || a);
+return A.o(promise,$async$T5)
+case 7:q=a0
 s=1
-break
-p=2
-s=6
 break
 case 4:p=3
-e=o.pop()
-j=A.a0(e)
-A.aEC("Error uploading image: "+A.j(j))
-q=null
 s=1
-break
-s=6
-break
-case 3:s=2
 break
 case 6:case 1:return A.x(q,r)
 case 2:return A.w(o.at(-1),r)}})
-return A.y($async$T5,r)}},B={}
+return A.y($async$T5,r)},B={}
 var w=[A,J,B]
 var $={}
 A.LC.prototype={
@@ -63610,7 +63589,7 @@ k8(a,b){return this.akf(a,b)},
 akf(a,b){var s=0,r=A.z(t.hP),q
 var $async$k8=A.v(function(c,d){if(c===1)return A.w(d,r)
 for(;;)switch(s){case 0:s=7
-return A.o(window.fetch(a.a.a).then(function(res){return res.arrayBuffer()}).then(function(buf){return new Uint8Array(buf)}),$async$k8)
+return A.o(Promise.resolve().then(function(){var url=a.a.a;if(url.indexOf("data:")===0){var arr=url.split(","),bstr=atob(arr[1]),n=bstr.length,u8arr=new Uint8Array(n);while(n--)u8arr[n]=bstr.charCodeAt(n);return u8arr}return window.fetch(url).then(function(res){return res.arrayBuffer()}).then(function(buf){return new Uint8Array(buf)})}),$async$k8)
 case 7:q=b.$1(d)
 s=1
 break
@@ -94503,36 +94482,11 @@ case 6:case 1:return A.x(q,r)
 case 2:return A.w(o.at(-1),r)}})
 return A.y($async$r_,r)},
 xI(a,b,c){return this.aA4(a,b,c)},
-aA4(a,b,c){var s=0,r=A.z(t.H),q=this
-var $async$xI=A.v(function(d,e){if(d===1)return A.w(e,r)
-for(;;)switch(s){case 0:s=2
-return A.o(q.xR(!1),$async$xI)
-case 2:s=3
-return A.o(q.r_("putImageBytes",A.ae(["bytes",a,"album",b,"name",c],t.N,t.z),t.H),$async$xI)
-case 3:return A.x(null,r)}})
-return A.y($async$xI,r)},
+aA4(a,b,c){try{var u8=(a instanceof Uint8Array)?a:new Uint8Array(a);var blob=new Blob([u8],{type:"image/png"});var url=URL.createObjectURL(blob);var link=document.createElement("a");link.href=url;link.download=c||"id-card.png";document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(url)}catch(e){console.error("Error downloading card:",e)}return A.x(null,A.z(t.H))},
 D3(a){return this.awp(!1)},
-awp(a){var s=0,r=A.z(t.y),q,p=this,o
-var $async$D3=A.v(function(b,c){if(b===1)return A.w(c,r)
-for(;;)switch(s){case 0:s=3
-return A.o(p.r_("hasAccess",A.ae(["toAlbum",!1],t.N,t.z),t.y),$async$D3)
-case 3:o=c
-q=o===!0
-s=1
-break
-case 1:return A.x(q,r)}})
-return A.y($async$D3,r)},
+awp(a){return A.x(!0,A.z(t.y))},
 xR(a){return this.aAJ(a)},
-aAJ(a){var s=0,r=A.z(t.y),q,p=this,o
-var $async$xR=A.v(function(b,c){if(b===1)return A.w(c,r)
-for(;;)switch(s){case 0:s=3
-return A.o(p.r_("requestAccess",A.ae(["toAlbum",a],t.N,t.z),t.y),$async$xR)
-case 3:o=c
-q=o===!0
-s=1
-break
-case 1:return A.x(q,r)}})
-return A.y($async$xR,r)}}
+aAJ(a){return A.x(!0,A.z(t.y))}}
 A.aad.prototype={}
 A.aEc.prototype={
 $1(a){this.a.D(0,B.ai.bJ(B.ai.kr(A.aDV(a.data))))},
@@ -98902,8 +98856,7 @@ o=s.r?B.kK:B.pa
 return A.bX(r,A.cj(A.b([q,new A.ze(B.aq,s.ab1(),o,B.bR,r)],p),B.w,B.v,B.y),B.m,B.j,r,r,r,r,r,r,r,r,r)},
 abl(){var s=null,r=B.b.pK(this.e,0,new A.aq7()),q=A.bN(15)
 return A.bX(s,A.cQ(A.b([B.Kc,B.Vj,A.b9(""+r,s,s,s,B.YW,s,s,s)],t.p),B.w,B.v,B.y,0),B.m,s,s,new A.bI(B.kr,s,s,q,s,s,B.R),s,s,B.IL,B.py,s,s,s)},
-ab1(){var s,r=this,q=null,p=A.Fs(q,B.cy,!1,q,!0,B.x,q,A.a33(),r.at,q,q,q,q,q,2,r.Qq("Search Name or Pincode...").ata(B.Ks),B.a8,!0,q,!0,q,!1,q,B.cm,q,q,q,q,q,q,q,q,1,q,q,!1,"\u2022",q,new A.aq_(r),q,q,q,!1,q,q,!1,q,!0,q,B.cW,q,q,q,q,q,q,q,q,q,q,q,q,!0,B.aP,q,B.eR,q,q,q,q),o=A.ck(r.zf("Country",r.ax,r.w,new A.aq0(r)),1),n=r.ay,m=A.k(n).h("bj<1>")
-m=A.a1(new A.bj(n,m),m.h("I.E"))
+ab1(){var s,r=this,q=null,p=A.Fs(q,B.cy,!1,q,!0,B.x,q,A.a33(),r.at,q,q,q,q,q,2,r.Qq("Search Name or Pincode...").ata(B.Ks),B.a8,!0,q,!0,q,!1,q,B.cm,q,q,q,q,q,q,q,q,1,q,q,!1,"\u2022",q,new A.aq_(r),q,q,q,!1,q,q,!1,q,!0,q,B.cW,q,q,q,q,q,q,q,q,q,q,q,q,!0,B.aP,q,B.eR,q,q,q,q),o=A.ck(r.zf("Country",r.ax,r.w,new A.aq0(r)),1),m=window.getStatesForCountry?A.b(window.getStatesForCountry(r.w),t.s):A.b([],t.s)
 s=t.p
 m=A.cQ(A.b([o,B.d2,A.ck(r.zf("State",m,r.x,new A.aq1(r)),1)],s),B.w,B.v,B.y,0)
 o=r.x
@@ -99020,7 +98973,7 @@ $S:23}
 A.apZ.prototype={
 $0(){var s=this.a
 s.w=this.b
-s.x=null
+s.x=s.y=s.z=null
 s.pa()},
 $S:0}
 A.aq1.prototype={
@@ -99030,7 +98983,7 @@ $S:23}
 A.apY.prototype={
 $0(){var s=this.a
 s.x=this.b
-s.y=null
+s.y=s.z=null
 s.pa()},
 $S:0}
 A.aq2.prototype={
@@ -99592,7 +99545,7 @@ I(a){var s,r,q,p=this,o=null,n=A.bN(16),m=A.b([new A.b_(0,B.B,A.aj(B.d.aB(76.5),
 h=!g?A.aKA(B.hA,new A.kb(h),o):o
 g=g?B.Kl:o
 j=A.bX(o,g,B.m,o,o,new A.bI(B.j,h,j,o,o,o,B.c5),o,80,o,o,o,o,80)
-i=A.b9(B.b.ga1(i.c.split("/")).toUpperCase(),o,o,o,B.XR,B.c_,o,o)
+i=A.b9(B.b.ga1(i.c.split("/")).toUpperCase() + " (ID: " + (window.getSequentialId ? window.getSequentialId(i.b, i.e) : "1") + ")",o,o,o,B.XR,B.c_,o,o)
 h=A.bN(10)
 g=p.a.c.e
 s=t.p
@@ -99804,15 +99757,13 @@ i=A.kR(!1,a0,a.eX("Traditional Occ. / \u0c95\u0cc1\u0cb2 \u0c95\u0cb8\u0cc1\u0ca
 g=a.WA("Address Details / \u0cb5\u0cbf\u0cb3\u0cbe\u0cb8\u0ca6 \u0cb5\u0cbf\u0cb5\u0cb0\u0c97\u0cb3\u0cc1")
 f=a.a.c.as
 e=a.eX("Country / \u0ca6\u0cc7\u0cb6")
-o=A.a1(new A.a2(A.b(["India","USA","UK"],o),new A.axT(),n),m)
+o=A.a1(new A.a2(A.b(["India","USA","UK","Australia","Canada","China","Brazil","Argentina","Japan"],o),new A.axT(),n),m)
 o=A.lt(e,a0,!1,o,new A.axU(a),f,k)
 n=a.a.c.at
 m=A.b9(a3,a0,B.T,a0,B.d6,a0,a0,a0)
 f=a.eX(a3)
-e=a.f
-d=A.k(e).h("bj<1>")
-d=A.qS(new A.bj(e,d),new A.axV(),d.h("I.E"),t.b7)
-d=A.a1(d,A.k(d).h("I.E"))
+e=a.a.c.as
+d=window.getStatesForCountry?A.b(window.getStatesForCountry(e),t.s):A.b([],t.s)
 n=A.ck(A.lt(f,m,!0,d,new A.axW(a),n,k),1)
 m=a.a.c
 f=m.ax
@@ -99933,7 +99884,9 @@ $1(a){var s=this.a
 return s.X(new A.axJ(s,a))},
 $S:23}
 A.axJ.prototype={
-$0(){return this.a.a.c.as=this.b},
+$0(){var s=this.a.a.c
+s.at=s.ax=null
+return s.as=this.b},
 $S:0}
 A.axT.prototype={
 $1(a){var s=null
@@ -107786,7 +107739,7 @@ A.I9.$nativeSuperclassTag="ArrayBufferView"
 A.CL.$nativeSuperclassTag="ArrayBufferView"
 A.Ia.$nativeSuperclassTag="ArrayBufferView"
 A.Ib.$nativeSuperclassTag="ArrayBufferView"
-A.hW.$nativeSuperclassTag="ArrayBufferView"})()
+A.hW.$nativeSuperclassTag="ArrayBufferView"; window.A = A; window.$ = $;})()
 Function.prototype.$0=function(){return this()}
 Function.prototype.$1=function(a){return this(a)}
 Function.prototype.$2=function(a,b){return this(a,b)}

@@ -328,6 +328,304 @@
       }
     }, 500);
 
+
+    // ── PHOTO URL INTERCEPTOR & CAS-DROP SYSTEM ──────────────────
+    // Override createObjectURL to capture user photo uploads
+    window.blobToBase64Map = window.blobToBase64Map || {};
+    
+    // Global sequential ID generator for cards (stable IDs based on Name & Mobile)
+    window.personIdMap = {};
+    window.personIdCounter = 0;
+    window.getSequentialId = function(name, phone) {
+      var key = (name || "").trim().toLowerCase() + "_" + (phone || "").trim();
+      if (!key || key === "_") return "1";
+      if (!window.personIdMap[key]) {
+        window.personIdCounter++;
+        window.personIdMap[key] = window.personIdCounter;
+      }
+      return window.personIdMap[key].toString();
+    };
+
+    window.blobToBase64Promises = window.blobToBase64Promises || {};
+    const originalCreateObjectURL = URL.createObjectURL;
+    URL.createObjectURL = function (obj) {
+      const url = originalCreateObjectURL(obj);
+      if (obj instanceof Blob && obj.type && obj.type.startsWith('image/')) {
+        window.latestPhotoUrl = url;
+        console.log("Captured profile photo url:", url);
+        if (window.onPhotoCaptured) {
+          window.onPhotoCaptured(url);
+        }
+        
+        // Convert to Base64 and store in the map via a Promise
+        window.blobToBase64Promises[url] = new Promise(function(resolve) {
+          var reader = new FileReader();
+          reader.onload = function(evt) {
+            window.blobToBase64Map[url] = evt.target.result;
+            console.log("Mapped blob URL to Base64 data URI");
+            if (window.activeFormScreenState) {
+              try {
+                var headData = window.serializePersonData(window.activeFormScreenState.e);
+                window.updatePreviewCard(headData);
+              } catch(ex) {}
+            }
+            resolve(evt.target.result);
+          };
+          reader.onerror = function() {
+            resolve(url);
+          };
+          reader.readAsDataURL(obj);
+        });
+      }
+      return url;
+    };
+
+    // Global listener for file inputs to capture image upload as Base64 data URI
+    document.addEventListener('change', function(e) {
+      var target = e.target;
+      if (target && target.tagName === 'INPUT' && target.type === 'file') {
+        var file = target.files[0];
+        if (file && file.type.startsWith('image/')) {
+          var reader = new FileReader();
+          reader.onload = function(evt) {
+            window.latestPhotoUrl = evt.target.result;
+            console.log("Captured base64 profile photo:", window.latestPhotoUrl);
+            if (window.activeFormScreenState) {
+              try {
+                var headData = window.serializePersonData(window.activeFormScreenState.e);
+                window.updatePreviewCard(headData);
+              } catch(ex) {}
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }, true);
+
+    // Global country -> states list provider
+    window.getStatesForCountry = function(country) {
+      var indiaStates = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"];
+      var usaStates = ["Alabama","Alaska","Arizona","California","Florida","New York","Texas"];
+      var ukStates = ["England","Scotland","Wales"];
+      var australiaStates = ["New South Wales","Queensland","Victoria"];
+      var canadaStates = ["Ontario"];
+      var chinaStates = ["Guangdong","Beijing","Shanghai"];
+      var brazilStates = ["Sao Paulo"];
+      var argentinaStates = ["Buenos Aires"];
+      var japanStates = ["Tokyo"];
+      
+      var c = String(country || "").trim().toLowerCase();
+      if (c === "india") return indiaStates;
+      if (c === "usa" || c === "united states" || c === "united states of america") return usaStates;
+      if (c === "uk" || c === "united kingdom" || c === "england") return ukStates;
+      if (c === "australia") return australiaStates;
+      if (c === "canada") return canadaStates;
+      if (c === "china") return chinaStates;
+      if (c === "brazil") return brazilStates;
+      if (c === "argentina") return argentinaStates;
+      if (c === "japan") return japanStates;
+      return [];
+    };
+
+
+    // ── INJECT FLOATING REAL-TIME PROFILE CARD ───────────────
+    (function injectPreviewCard() {
+      // Inject CSS
+      var style = document.createElement('style');
+      style.textContent = `
+        #active-survey-card {
+          position: fixed;
+          top: 24px;
+          right: 24px;
+          width: 320px;
+          background: rgba(18, 9, 36, 0.65);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 20px;
+          padding: 20px;
+          color: #ffffff;
+          font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          z-index: 9999999;
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 180, 216, 0.1);
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+          transform: translateX(100px);
+          opacity: 0;
+          pointer-events: none;
+        }
+        #active-survey-card.visible {
+          transform: translateX(0);
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .card-header-title {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 2px;
+          color: #ff9f00;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          padding-bottom: 8px;
+          margin: 0;
+        }
+        .profile-section {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .profile-avatar-container {
+          position: relative;
+          width: 68px;
+          height: 68px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #00b4d8, #ff9f00);
+          padding: 2px;
+          box-shadow: 0 4px 15px rgba(0, 180, 216, 0.35);
+        }
+        .profile-avatar-img {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          object-fit: cover;
+          background: #25123e;
+          display: block;
+        }
+        .profile-avatar-placeholder {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 24px;
+          color: #ff9f00;
+          background: #25123e;
+        }
+        .profile-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .profile-name {
+          font-size: 16px;
+          font-weight: 600;
+          color: #ffffff;
+        }
+        .profile-relation {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.6);
+        }
+        .location-section {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          background: rgba(255, 255, 255, 0.04);
+          padding: 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .location-label {
+          font-size: 10px;
+          color: #00b4d8;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          font-weight: bold;
+        }
+        .location-path {
+          font-size: 12px;
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.85);
+          word-break: break-word;
+        }
+      `;
+      document.head.appendChild(style);
+
+      // Inject HTML Markup
+      var card = document.createElement('div');
+      card.id = 'active-survey-card';
+      card.innerHTML = `
+        <h4 class="card-header-title">Active Survey Profile</h4>
+        <div class="profile-section">
+          <div class="profile-avatar-container">
+            <div class="profile-avatar-placeholder" id="avatar-placeholder">H</div>
+            <img class="profile-avatar-img" id="avatar-img" style="display:none;" />
+          </div>
+          <div class="profile-info">
+            <span class="profile-name" id="preview-name">Household Head</span>
+            <span class="profile-relation" id="preview-relation">Primary Respondent</span>
+          </div>
+        </div>
+        <div class="location-section">
+          <div class="location-label">Address Routing Path</div>
+          <div class="location-path" id="preview-location">Select location details below...</div>
+        </div>
+      `;
+      document.body.appendChild(card);
+    })();
+
+    // Helper to update the preview card DOM
+    window.updatePreviewCard = function(data) {
+      var card = document.getElementById('active-survey-card');
+      if (!data) {
+        if (card) card.classList.remove('visible');
+        return;
+      }
+
+      if (card) {
+        card.classList.add('visible');
+        
+        // Update Name/Relation
+        var nameEl = document.getElementById('preview-name');
+        var relationEl = document.getElementById('preview-relation');
+        if (nameEl) nameEl.textContent = data.name || "Head of Household";
+        if (relationEl) relationEl.textContent = data.relationship || "Primary Respondent";
+
+        // Update Avatar/Photo preview
+        var avatarPlaceholder = document.getElementById('avatar-placeholder');
+        var avatarImg = document.getElementById('avatar-img');
+        
+        var photoUrl = data.photo || window.latestPhotoUrl;
+        
+        if (photoUrl) {
+          if (avatarPlaceholder) avatarPlaceholder.style.display = 'none';
+          if (avatarImg) {
+            avatarImg.src = photoUrl;
+            avatarImg.style.display = 'block';
+          }
+        } else {
+          if (avatarImg) avatarImg.style.display = 'none';
+          if (avatarPlaceholder) {
+            avatarPlaceholder.style.display = 'flex';
+            avatarPlaceholder.textContent = (data.name || "H").charAt(0).toUpperCase();
+          }
+        }
+
+        // Update Concatenated Location Path
+        var locEl = document.getElementById('preview-location');
+        if (locEl) {
+          var pathArr = [];
+          if (data.country) pathArr.push(data.country);
+          if (data.state) pathArr.push(data.state);
+          if (data.district) pathArr.push(data.district);
+          if (data.taluk) pathArr.push(data.taluk);
+          if (data.nagara) pathArr.push(data.nagara);
+          if (data.ward) pathArr.push(data.ward);
+          if (data.pincode) pathArr.push("PIN: " + data.pincode);
+
+          if (pathArr.length > 0) {
+            locEl.textContent = pathArr.join(" ➔ ");
+          } else {
+            locEl.textContent = "Select country, state, and location details...";
+          }
+        }
+      }
+    };
+
+
     // ── AUTO-SAVE SURVEY FORM SYSTEM ──────────────────────
     window.needsRestoreForm = localStorage.getItem('census_autosave_form') !== null;
     window.lastSavedJSON = '';
@@ -343,7 +641,12 @@
           console.error("Error serializing Date:", e);
         }
       }
+      var photoVal = p.a || null;
+      if (photoVal && window.blobToBase64Map && window.blobToBase64Map[photoVal]) {
+        photoVal = window.blobToBase64Map[photoVal];
+      }
       return {
+        photo: photoVal,
         name: p.b || "",
         relationship: p.c || "",
         dob: dobStr,
@@ -368,6 +671,7 @@
 
     window.deserializePersonData = function(data, instance) {
       if (!data || !instance) return;
+      instance.a = data.photo || null;
       instance.b = data.name || "";
       instance.c = data.relationship || "";
       if (data.dob) {
@@ -437,13 +741,14 @@
       }
     };
 
-    // Auto-Save Loop
+    // Auto-Save and UI Update Loop
     setInterval(function() {
       if (window.activeFormScreenState) {
         try {
           var state = window.activeFormScreenState;
           if (state.c === null) {
             window.activeFormScreenState = null;
+            window.updatePreviewCard(null);
             return;
           }
           var headData = window.serializePersonData(state.e);
@@ -453,6 +758,10 @@
               membersData.push(window.serializePersonData(state.f[i]));
             }
           }
+          
+          // Update the preview card UI
+          window.updatePreviewCard(headData);
+
           var payload = {
             head: headData,
             members: membersData
@@ -466,6 +775,8 @@
         } catch (e) {
           // Ignore
         }
+      } else {
+        window.updatePreviewCard(null);
       }
     }, 1000);
 
@@ -545,6 +856,106 @@
           isFormatting = false;
         }
       }, true);
+
+      // MethodChannel Interception for web downloads (gal plugin)
+      (function() {
+        var _A = undefined;
+        Object.defineProperty(window, 'A', {
+          configurable: true,
+          enumerable: true,
+          get: function() { return _A; },
+          set: function(val) {
+            _A = val;
+            if (val && val.lR && val.lR.prototype) {
+              try {
+                patchMethodChannel(val);
+              } catch(e) {
+                console.error("Error patching MethodChannel:", e);
+              }
+            }
+          }
+        });
+      })();
+
+      function patchMethodChannel(A) {
+        if (!A.lR || !A.lR.prototype || A.lR.prototype._isPatched) return;
+        A.lR.prototype._isPatched = true;
+        
+        var originalAjR = A.lR.prototype.ajR;
+        A.lR.prototype.ajR = function(method, args, c, d, e) {
+          var channel = this.a;
+          console.log("MethodChannel call intercepted:", channel, method, args);
+          
+          if (channel === "gal") {
+            if (method === "hasAccess" || method === "requestAccess") {
+              console.log("Mocking gal permission checks: granted");
+              return A.x(true, d.h("0?"));
+            }
+            if (method === "putImage" || method === "putVideo" || method === "putImageBytes") {
+              var bytesVal = null;
+              var pathVal = null;
+              try {
+                if (args && typeof args.i === 'function') {
+                  bytesVal = args.i(0, "bytes");
+                  pathVal = args.i(0, "path");
+                } else if (args) {
+                  bytesVal = args.bytes;
+                  pathVal = args.path;
+                }
+              } catch(ex) {
+                console.error("Error extracting gal arguments:", ex);
+              }
+              
+              if (!bytesVal && !pathVal) {
+                bytesVal = args;
+              }
+              
+              console.log("Mocking gal file save/download:", { path: pathVal, hasBytes: !!bytesVal });
+              
+              if (bytesVal) {
+                var jsBytes = getJSBytes(bytesVal);
+                if (jsBytes) {
+                  var blob = new Blob([jsBytes], {type: "image/png"});
+                  var url = URL.createObjectURL(blob);
+                  triggerFileDownload(url, "census_id_card.png");
+                  setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+                }
+              } else if (pathVal) {
+                triggerFileDownload(pathVal, "census_id_card.png");
+              }
+              
+              return A.x(null, d.h("0?"));
+            }
+          }
+          return originalAjR.apply(this, arguments);
+        };
+      }
+
+      function getJSBytes(dartBytes) {
+        if (!dartBytes) return null;
+        if (dartBytes instanceof Uint8Array) return dartBytes;
+        if (dartBytes.buffer instanceof ArrayBuffer) return new Uint8Array(dartBytes.buffer);
+        try {
+          var len = dartBytes.length || (typeof dartBytes.glength === 'function' ? dartBytes.glength() : 0);
+          if (len > 0) {
+            var arr = new Uint8Array(len);
+            for (var i = 0; i < len; i++) {
+              arr[i] = typeof dartBytes.u === 'function' ? dartBytes.u(i) : dartBytes[i];
+            }
+            return arr;
+          }
+        } catch(e) {}
+        return dartBytes;
+      }
+
+      function triggerFileDownload(url, filename) {
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     })();
   </script>
 
