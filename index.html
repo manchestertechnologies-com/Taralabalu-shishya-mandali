@@ -34,6 +34,171 @@
         }
       });
     }
+
+    // ── LOCAL STORAGE CENSUS DATABASE EMULATION LAYER ───────
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    // Initialize database arrays in localStorage if they don't exist
+    if (!localStorage.getItem('census_households')) {
+      localStorage.setItem('census_households', '[]');
+    }
+    if (!localStorage.getItem('census_members')) {
+      localStorage.setItem('census_members', '[]');
+    }
+    if (!localStorage.getItem('census_sequential_id_counter')) {
+      localStorage.setItem('census_sequential_id_counter', '0');
+    }
+
+    // Map for temporary Blob URLs to Base64 strings
+    window.blobToBase64Map = window.blobToBase64Map || {};
+
+    // Get User Sequential ID lookup helper
+    window.getSequentialId = function(name, mobile) {
+      var members = JSON.parse(localStorage.getItem('census_members') || '[]');
+      var cleanName = String(name || "").trim().toLowerCase();
+      var cleanMobile = String(mobile || "").trim();
+      
+      // Try lookup by name and mobile
+      var found = members.find(function(m) {
+        var mName = String(m.name || "").trim().toLowerCase();
+        var mMobile = String(m.mobile_number || "").trim();
+        return mName === cleanName && mMobile === cleanMobile;
+      });
+      if (found && found.sequential_id) return found.sequential_id.toString();
+      
+      // Fallback lookup by name only
+      var foundByName = members.find(function(m) {
+        var mName = String(m.name || "").trim().toLowerCase();
+        return mName === cleanName;
+      });
+      if (foundByName && foundByName.sequential_id) return foundByName.sequential_id.toString();
+      
+      return "1";
+    };
+
+    // Intercept standard fetch requests to redirect Supabase queries to localStorage
+    (function() {
+      var originalFetch = window.fetch;
+      window.fetch = async function(resource, init) {
+        var url = typeof resource === 'string' ? resource : resource.url;
+        
+        if (url && url.indexOf('.supabase.co/rest/v1/') !== -1) {
+          console.log('[Mock Supabase Fetch]:', url, init);
+          try {
+            var parsedUrl = new URL(url);
+            var path = parsedUrl.pathname;
+            var method = init ? (init.method || 'GET').toUpperCase() : 'GET';
+            
+            var parts = path.split('/');
+            var table = parts[parts.length - 1];
+            
+            // 1. GET HOUSEHOLD MEMBERS (Admin list)
+            if (table === 'household_members' && method === 'GET') {
+              var members = JSON.parse(localStorage.getItem('census_members') || '[]');
+              var households = JSON.parse(localStorage.getItem('census_households') || '[]');
+              
+              var joinedData = members.map(function(m) {
+                var hh = households.find(function(h) { return h.id === m.household_id; }) || {};
+                return Object.assign({}, m, {
+                  household_created_at: hh.created_at || new Date().toISOString(),
+                  household_user_id: hh.user_id || 'anonymous'
+                });
+              });
+              
+              // Sort by sequential ID descending so newest users appear first
+              joinedData.sort(function(a, b) {
+                return (b.sequential_id || 0) - (a.sequential_id || 0);
+              });
+              
+              return new Response(JSON.stringify(joinedData), {
+                status: 200,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'content-range': '0-' + (joinedData.length - 1) + '/' + joinedData.length
+                }
+              });
+            }
+            
+            // 2. POST HOUSEHOLDS (Add new household)
+            if (table === 'households' && method === 'POST') {
+              var body = JSON.parse(init.body || '{}');
+              var households = JSON.parse(localStorage.getItem('census_households') || '[]');
+              
+              var newId = generateUUID();
+              var newHousehold = {
+                id: newId,
+                user_id: body.user_id || 'anonymous',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+              
+              households.push(newHousehold);
+              localStorage.setItem('census_households', JSON.stringify(households));
+              
+              // Clear autosave draft on successful submission
+              localStorage.removeItem('census_autosave_form');
+              
+              return new Response(JSON.stringify(newHousehold), {
+                status: 201,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            }
+            
+            // 3. POST PERSONS (Add household member)
+            if (table === 'persons' && method === 'POST') {
+              var body = JSON.parse(init.body || '{}');
+              var members = JSON.parse(localStorage.getItem('census_members') || '[]');
+              
+              var householdId = body.household_id;
+              
+              // Fetch or create sequential ID for this household
+              var seqId = localStorage.getItem('household_seq_' + householdId);
+              if (!seqId) {
+                var counter = parseInt(localStorage.getItem('census_sequential_id_counter') || '0') + 1;
+                localStorage.setItem('census_sequential_id_counter', counter.toString());
+                localStorage.setItem('household_seq_' + householdId, counter.toString());
+                seqId = counter.toString();
+              }
+              
+              var newId = generateUUID();
+              var newMember = Object.assign({}, body, {
+                id: newId,
+                sequential_id: parseInt(seqId),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+              
+              members.push(newMember);
+              localStorage.setItem('census_members', JSON.stringify(members));
+              
+              return new Response(JSON.stringify(newMember), {
+                status: 201,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            }
+            
+            // Fallback response
+            return new Response(JSON.stringify([]), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          } catch(err) {
+            console.error('[Mock Supabase Fetch Error]:', err);
+            return new Response(JSON.stringify({ error: err.message }), {
+              status: 500,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+        }
+        
+        return originalFetch.apply(this, arguments);
+      };
+    })();
   </script>
 
   <meta charset="UTF-8">
@@ -476,9 +641,9 @@
         name: p.b || "",
         relationship: p.c || "",
         dob: dobStr,
-        age: p.r || "",
+        age: p.e || "",
         aadhar: p.f || "",
-        mobile: p.e || "",
+        mobile: p.r || "",
         maritalStatus: p.w || "",
         education: p.x || "",
         empType: p.y || "",
@@ -512,9 +677,9 @@
       } else {
         instance.d = null;
       }
-      instance.r = data.age || "";
+      instance.e = data.age || "";
       instance.f = data.aadhar || "";
-      instance.e = data.mobile || "";
+      instance.r = data.mobile || "";
       instance.w = data.maritalStatus || "";
       instance.x = data.education || "";
       instance.y = data.empType || "";
@@ -781,6 +946,6 @@
     })();
   </script>
 
-  <script src="flutter_bootstrap.js?v=110" async></script>
+  <script src="flutter_bootstrap.js?v=111" async></script>
 </body>
 </html>

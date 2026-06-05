@@ -94468,7 +94468,7 @@ case 6:case 1:return A.x(q,r)
 case 2:return A.w(o.at(-1),r)}})
 return A.y($async$r_,r)},
 xI(a,b,c){return this.aA4(a,b,c)},
-aA4(a,b,c){try{var u8=(a instanceof Uint8Array)?a:new Uint8Array(a);var blob=new Blob([u8],{type:"image/png"});var url=URL.createObjectURL(blob);var link=document.createElement("a");link.href=url;link.download=c||"id-card.png";document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(url)}catch(e){console.error("Error downloading card:",e)}return A.x(null,A.z(t.H))},
+aA4(a,b,c){try{var u8=null;if(a instanceof Uint8Array)u8=a;else if(a&&a.buffer instanceof ArrayBuffer)u8=new Uint8Array(a.buffer);else{try{var len=a.length||(typeof a.glength==='function'?a.glength():0);if(len>0){u8=new Uint8Array(len);for(var i=0;i<len;i++){u8[i]=typeof a.u==='function'?a.u(i):a[i];}}}catch(ex){}}if(!u8)u8=new Uint8Array(a);var blob=new Blob([u8],{type:"image/png"});var url=URL.createObjectURL(blob);var link=document.createElement("a");link.href=url;link.download=c||"id-card.png";document.body.appendChild(link);link.click();document.body.removeChild(link);setTimeout(function(){URL.revokeObjectURL(url);},10000);}catch(e){console.error("Error downloading card:",e)}return A.x(null,A.z(t.H))},
 D3(a){return this.awp(!1)},
 awp(a){return A.x(!0,A.z(t.y))},
 xR(a){return this.aAJ(a)},
@@ -99756,6 +99756,7 @@ f=m.ax
 d=A.b9(a4,a0,B.T,a0,B.d6,a0,a0,a0)
 c=a.eX(a4)
 m=m.at
+e=a.f
 if(m==null)m=A.b([],t.FG)
 else{m=e.i(0,m)
 m.toString
