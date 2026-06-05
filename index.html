@@ -71,7 +71,7 @@
       visibility: hidden;
     }
 
-    /* Fixed watermark overlay - enlarged to cover whole window and darker opacity */
+    /* Fixed watermark overlay - centered and scaled for phones, less opacity */
     #watermark-overlay {
       position: fixed;
       left: 0;
@@ -81,8 +81,8 @@
       background-image: url('assets/assets/app_icon.jpg');
       background-position: center;
       background-repeat: no-repeat;
-      background-size: cover; /* Enlarge to cover window size */
-      opacity: 0.35; /* Darker watermark as requested */
+      background-size: contain; /* Fit in center without cropping on mobile */
+      opacity: 0.15; /* Less opacity as requested */
       pointer-events: none;
       z-index: 999999; /* Higher than Flutter view layer */
       display: none; /* Toggled dynamically on login status */
@@ -91,7 +91,7 @@
 
     /* Invert watermark color in dark mode so it renders as light lines */
     body.dark-theme.logged-in #watermark-overlay {
-      opacity: 0.25;
+      opacity: 0.10; /* Even less opacity on dark background */
       filter: invert(1);
     }
 
@@ -278,6 +278,6 @@
     }, 500);
   </script>
 
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=102" async></script>
 </body>
 </html>
