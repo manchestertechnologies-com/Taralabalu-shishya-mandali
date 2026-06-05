@@ -41,9 +41,6 @@
     ::-webkit-scrollbar-track {
       background: rgba(0, 0, 0, 0.05);
     }
-    body.dark-theme ::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
-    }
     ::-webkit-scrollbar-thumb {
       background: linear-gradient(135deg, #4A148C, #00BCD4);
       border-radius: 5px;
@@ -89,65 +86,13 @@
       transition: opacity 0.5s ease;
     }
 
-    /* Invert watermark color in dark mode so it renders as light lines */
-    body.dark-theme.logged-in #watermark-overlay {
-      opacity: 0.10; /* Even less opacity on dark background */
-      filter: invert(1);
-    }
-
-    /* Smooth transition for theme filter inversion and entry scaling */
+    /* Smooth entry scale and fade animation for the Flutter viewport */
     flt-glass-pane {
-      transition: filter 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       animation: appFadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     @keyframes appFadeIn {
       0% { opacity: 0; transform: scale(0.98); }
       100% { opacity: 1; transform: scale(1); }
-    }
-
-    /* Dark mode color inversion for the Flutter app when logged in */
-    body.dark-theme.logged-in flt-glass-pane {
-      filter: invert(1) hue-rotate(180deg) brightness(1.1) contrast(0.9);
-    }
-
-    /* Floating theme toggle button with pulsing glow and rotate animation */
-    #theme-toggle-btn {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: #4A148C;
-      color: white;
-      border: none;
-      box-shadow: 0 4px 12px rgba(74, 20, 140, 0.4);
-      cursor: pointer;
-      z-index: 1000000; /* Always on top */
-      display: none; /* Hidden by default, only shown when logged in */
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      animation: themePulse 3s infinite alternate;
-    }
-    @keyframes themePulse {
-      0% { box-shadow: 0 0 10px rgba(74, 20, 140, 0.4); }
-      100% { box-shadow: 0 0 25px rgba(74, 20, 140, 0.8), 0 0 10px rgba(0, 188, 212, 0.4); }
-    }
-    #theme-toggle-btn:hover {
-      transform: scale(1.1) rotate(15deg);
-    }
-    #theme-toggle-btn:active {
-      transform: scale(0.95);
-    }
-    body.dark-theme #theme-toggle-btn {
-      background: #ffffff;
-      color: #1a0933;
-      box-shadow: 0 4px 12px rgba(255, 255, 255, 0.4);
-    }
-    body.logged-in #theme-toggle-btn {
-      display: flex;
     }
 
     /* Mutt-themed html loading screen to prevent initial white screen flash */
@@ -206,42 +151,8 @@
   <!-- Watermark Element -->
   <div id="watermark-overlay"></div>
 
-  <!-- Floating Theme Toggle Button -->
-  <button id="theme-toggle-btn" onclick="toggleTheme()" title="Switch Theme">🌙</button>
-
   <!-- Theme and Watermark Script -->
   <script>
-    // Initialize theme mode immediately to prevent flash
-    (function() {
-      var savedTheme = localStorage.getItem('tsm_theme_mode') || 'light';
-      if (savedTheme === 'dark') {
-        document.body.classList.add('dark-theme');
-      }
-    })();
-
-    function toggleTheme() {
-      var body = document.body;
-      var btn = document.getElementById('theme-toggle-btn');
-      if (body.classList.contains('dark-theme')) {
-        body.classList.remove('dark-theme');
-        if (btn) btn.textContent = '🌙';
-        localStorage.setItem('tsm_theme_mode', 'light');
-      } else {
-        body.classList.add('dark-theme');
-        if (btn) btn.textContent = '☀️';
-        localStorage.setItem('tsm_theme_mode', 'dark');
-      }
-    }
-
-    // Update toggle button text on load if dark theme is active
-    window.addEventListener('DOMContentLoaded', function() {
-      var savedTheme = localStorage.getItem('tsm_theme_mode') || 'light';
-      var btn = document.getElementById('theme-toggle-btn');
-      if (btn) {
-        btn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-      }
-    });
-
     // Observer to fade out HTML loader when Flutter view renders
     var observer = new MutationObserver(function(mutations) {
       if (document.querySelector('flt-glass-pane') || document.querySelector('flutter-view')) {
@@ -278,6 +189,6 @@
     }, 500);
   </script>
 
-  <script src="flutter_bootstrap.js?v=103" async></script>
+  <script src="flutter_bootstrap.js?v=104" async></script>
 </body>
 </html>
