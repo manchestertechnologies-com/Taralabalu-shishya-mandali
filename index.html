@@ -73,10 +73,6 @@
     }
 
     function wrapString(str) {
-      if (!str) return str;
-      if (window.A && window.A.b9) {
-        return window.A.b9(str);
-      }
       return str;
     }
 
@@ -719,6 +715,22 @@
         try {
           var saved = JSON.parse(localStorage.getItem('census_autosave_form'));
           if (saved) {
+            // Check for corrupted draft data from broken versions
+            var isCorrupted = false;
+            if (saved.head) {
+              var h = saved.head;
+              if (typeof h.name === 'object' || typeof h.country === 'object' || 
+                  (typeof h.name === 'string' && h.name.indexOf('[object Object]') !== -1) ||
+                  (typeof h.country === 'string' && h.country.indexOf('[object Object]') !== -1) ||
+                  (typeof h.state === 'string' && h.state.indexOf('[object Object]') !== -1)) {
+                isCorrupted = true;
+              }
+            }
+            if (isCorrupted) {
+              console.warn("Auto-Save: Corrupted draft detected, clearing local autosave storage.");
+              localStorage.removeItem('census_autosave_form');
+              return;
+            }
             var N = saved.members ? saved.members.length : 0;
             // If the member count doesn't match, trigger the setState change
             if (state.f.length !== N) {
@@ -967,6 +979,6 @@
     })();
   </script>
 
-  <script src="flutter_bootstrap.js?v=114" async></script>
+  <script src="flutter_bootstrap.js?v=115" async></script>
 </body>
 </html>
