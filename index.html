@@ -71,7 +71,7 @@
       visibility: hidden;
     }
 
-    /* Fixed watermark overlay - centered and scaled for phones, less opacity */
+    /* Fixed watermark overlay - centered and stretched to cover entire window on mobile */
     #watermark-overlay {
       position: fixed;
       left: 0;
@@ -81,7 +81,7 @@
       background-image: url('assets/assets/app_icon.jpg');
       background-position: center;
       background-repeat: no-repeat;
-      background-size: contain; /* Fit in center without cropping on mobile */
+      background-size: cover; /* Cover entire viewport height and width properly */
       opacity: 0.15; /* Less opacity as requested */
       pointer-events: none;
       z-index: 999999; /* Higher than Flutter view layer */
@@ -278,6 +278,6 @@
     }, 500);
   </script>
 
-  <script src="flutter_bootstrap.js?v=102" async></script>
+  <script src="flutter_bootstrap.js?v=103" async></script>
 </body>
 </html>
