@@ -33,6 +33,25 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
+    /* Premium custom scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    body.dark-theme ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #4A148C, #00BCD4);
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(135deg, #6A1B9A, #00E5FF);
+    }
+
     /* Fixed watermark overlay - enlarged to cover whole window and darker opacity */
     #watermark-overlay {
       position: fixed;
@@ -48,6 +67,7 @@
       pointer-events: none;
       z-index: 999999; /* Higher than Flutter view layer */
       display: none; /* Toggled dynamically on login status */
+      transition: opacity 0.5s ease;
     }
 
     /* Invert watermark color in dark mode so it renders as light lines */
@@ -56,12 +76,17 @@
       filter: invert(1);
     }
 
+    /* Smooth transition for theme filter inversion */
+    flt-glass-pane {
+      transition: filter 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     /* Dark mode color inversion for the Flutter app when logged in */
     body.dark-theme.logged-in flt-glass-pane {
       filter: invert(1) hue-rotate(180deg) brightness(1.1) contrast(0.9);
     }
 
-    /* Floating theme toggle button */
+    /* Floating theme toggle button with pulsing glow and rotate animation */
     #theme-toggle-btn {
       position: fixed;
       bottom: 20px;
@@ -72,18 +97,22 @@
       background: #4A148C;
       color: white;
       border: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 12px rgba(74, 20, 140, 0.4);
       cursor: pointer;
       z-index: 1000000; /* Always on top */
       display: none; /* Hidden by default, only shown when logged in */
       align-items: center;
       justify-content: center;
       font-size: 24px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      animation: themePulse 3s infinite alternate;
+    }
+    @keyframes themePulse {
+      0% { box-shadow: 0 0 10px rgba(74, 20, 140, 0.4); }
+      100% { box-shadow: 0 0 25px rgba(74, 20, 140, 0.8), 0 0 10px rgba(0, 188, 212, 0.4); }
     }
     #theme-toggle-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+      transform: scale(1.1) rotate(15deg);
     }
     #theme-toggle-btn:active {
       transform: scale(0.95);
@@ -91,18 +120,67 @@
     body.dark-theme #theme-toggle-btn {
       background: #ffffff;
       color: #1a0933;
+      box-shadow: 0 4px 12px rgba(255, 255, 255, 0.4);
     }
     body.logged-in #theme-toggle-btn {
       display: flex;
     }
+
+    /* Mutt-themed html loading screen to prevent initial white screen flash */
+    #html-loader {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle, #1a0933, #0d0221, #000000);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999999;
+      opacity: 1;
+      transition: opacity 0.5s ease, visibility 0.5s;
+    }
+    .spinner {
+      width: 65px;
+      height: 65px;
+      border: 4px solid rgba(255, 111, 0, 0.15);
+      border-top: 4px solid #FF6F00;
+      border-left: 4px solid #00BCD4;
+      border-radius: 50%;
+      animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      box-shadow: 0 0 20px rgba(255, 111, 0, 0.3);
+    }
+    .loader-text {
+      margin-top: 24px;
+      color: white;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      animation: pulseText 1.5s infinite alternate;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes pulseText {
+      0% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
   </style>
 </head>
 <body>
+  <!-- Custom Loading Splash Screen -->
+  <div id="html-loader">
+    <div class="spinner"></div>
+    <div class="loader-text">Taralabalu Shishya Mandali</div>
+  </div>
+
   <!-- Watermark Element -->
   <div id="watermark-overlay"></div>
 
   <!-- Floating Theme Toggle Button -->
-  <button id="theme-toggle-btn" onclick="toggleTheme()">🌙</button>
+  <button id="theme-toggle-btn" onclick="toggleTheme()" title="Switch Theme">🌙</button>
 
   <!-- Theme and Watermark Script -->
   <script>
@@ -136,6 +214,22 @@
         btn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
       }
     });
+
+    // Observer to fade out HTML loader when Flutter view renders
+    var observer = new MutationObserver(function(mutations) {
+      if (document.querySelector('flt-glass-pane') || document.querySelector('flutter-view')) {
+        var loader = document.getElementById('html-loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          setTimeout(function() {
+            loader.style.visibility = 'hidden';
+            loader.remove();
+          }, 500);
+        }
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 
     // Dynamic State Toggler
     setInterval(function() {
