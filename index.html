@@ -61,15 +61,35 @@
     window.blobToBase64Map = window.blobToBase64Map || {};
 
     // Helpers to handle Dart String wrappers in compiled Javascript
+    function sanitizePlaceholder(val) {
+      if (!val) return null;
+      var s = String(val).trim();
+      if (s === "" || 
+          s.indexOf("State /") === 0 || 
+          s.indexOf("District /") === 0 || 
+          s.indexOf("Taluk /") === 0 || 
+          s.indexOf("Nagara /") === 0 || 
+          s.indexOf("Ward /") === 0 || 
+          s.indexOf("Relationship /") === 0 || 
+          s.indexOf("Marital Status /") === 0 ||
+          s.indexOf("Country /") === 0) {
+        return null;
+      }
+      return val;
+    }
+
     function unwrapString(str) {
       if (!str) return "";
-      if (typeof str === 'string') return str;
-      if (typeof str === 'object') {
-        if (typeof str.a === 'string') return str.a;
-        if (typeof str.g === 'string') return str.g;
-        return str.toString();
+      var val = "";
+      if (typeof str === 'string') val = str;
+      else if (typeof str === 'object') {
+        if (typeof str.a === 'string') val = str.a;
+        else if (typeof str.g === 'string') val = str.g;
+        else val = str.toString();
+      } else {
+        val = String(str);
       }
-      return String(str);
+      return sanitizePlaceholder(val) || "";
     }
 
     function wrapString(str) {
@@ -677,7 +697,7 @@
       if (!data || !instance) return;
       instance.a = wrapString(data.photo) || null;
       instance.b = wrapString(data.name) || "";
-      instance.c = wrapString(data.relationship) || "";
+      instance.c = wrapString(sanitizePlaceholder(data.relationship)) || "";
       if (data.dob) {
         var timestamp = Date.parse(data.dob);
         if (!isNaN(timestamp)) {
@@ -693,17 +713,17 @@
       instance.e = wrapString(data.age) || "";
       instance.f = wrapString(data.aadhar) || "";
       instance.r = wrapString(data.mobile) || "";
-      instance.w = wrapString(data.maritalStatus) || "";
+      instance.w = wrapString(sanitizePlaceholder(data.maritalStatus)) || "";
       instance.x = wrapString(data.education) || "";
       instance.y = wrapString(data.empType) || "";
       instance.z = wrapString(data.occupation) || "";
       instance.Q = wrapString(data.traditionalOccupation) || "";
-      instance.as = wrapString(data.country) || "India";
-      instance.at = wrapString(data.state) || null;
-      instance.ax = wrapString(data.district) || null;
-      instance.ay = wrapString(data.taluk) || null;
-      instance.ch = wrapString(data.nagara) || null;
-      instance.CW = wrapString(data.ward) || null;
+      instance.as = wrapString(sanitizePlaceholder(data.country)) || "India";
+      instance.at = wrapString(sanitizePlaceholder(data.state)) || null;
+      instance.ax = wrapString(sanitizePlaceholder(data.district)) || null;
+      instance.ay = wrapString(sanitizePlaceholder(data.taluk)) || null;
+      instance.ch = wrapString(sanitizePlaceholder(data.nagara)) || null;
+      instance.CW = wrapString(sanitizePlaceholder(data.ward)) || null;
       instance.cx = wrapString(data.pincode) || "";
       instance.cy = data.isExpanded || false;
     };
@@ -979,6 +999,6 @@
     })();
   </script>
 
-  <script src="flutter_bootstrap.js?v=116" async></script>
+  <script src="flutter_bootstrap.js?v=117" async></script>
 </body>
 </html>
