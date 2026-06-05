@@ -33,7 +33,7 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
-    /* Fixed watermark overlay on top of everything but non-interactive */
+    /* Fixed watermark overlay - enlarged to cover whole window and darker opacity */
     #watermark-overlay {
       position: fixed;
       left: 0;
@@ -43,11 +43,57 @@
       background-image: url('assets/assets/app_icon.jpg');
       background-position: center;
       background-repeat: no-repeat;
-      background-size: contain;
-      opacity: 0.18; /* Increased opacity for clear visibility as requested */
+      background-size: cover; /* Enlarge to cover window size */
+      opacity: 0.35; /* Darker watermark as requested */
       pointer-events: none;
-      z-index: 999999; /* Higher than Flutter CanvasKit view layer */
+      z-index: 999999; /* Higher than Flutter view layer */
       display: none; /* Toggled dynamically on login status */
+    }
+
+    /* Invert watermark color in dark mode so it renders as light lines */
+    body.dark-theme.logged-in #watermark-overlay {
+      opacity: 0.25;
+      filter: invert(1);
+    }
+
+    /* Dark mode color inversion for the Flutter app when logged in */
+    body.dark-theme.logged-in flt-glass-pane {
+      filter: invert(1) hue-rotate(180deg) brightness(1.1) contrast(0.9);
+    }
+
+    /* Floating theme toggle button */
+    #theme-toggle-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #4A148C;
+      color: white;
+      border: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      cursor: pointer;
+      z-index: 1000000; /* Always on top */
+      display: none; /* Hidden by default, only shown when logged in */
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #theme-toggle-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    }
+    #theme-toggle-btn:active {
+      transform: scale(0.95);
+    }
+    body.dark-theme #theme-toggle-btn {
+      background: #ffffff;
+      color: #1a0933;
+    }
+    body.logged-in #theme-toggle-btn {
+      display: flex;
     }
   </style>
 </head>
@@ -55,18 +101,55 @@
   <!-- Watermark Element -->
   <div id="watermark-overlay"></div>
 
-  <!-- Dynamic Watermark Toggler Script -->
+  <!-- Floating Theme Toggle Button -->
+  <button id="theme-toggle-btn" onclick="toggleTheme()">🌙</button>
+
+  <!-- Theme and Watermark Script -->
   <script>
+    // Initialize theme mode immediately to prevent flash
+    (function() {
+      var savedTheme = localStorage.getItem('tsm_theme_mode') || 'light';
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+      }
+    })();
+
+    function toggleTheme() {
+      var body = document.body;
+      var btn = document.getElementById('theme-toggle-btn');
+      if (body.classList.contains('dark-theme')) {
+        body.classList.remove('dark-theme');
+        if (btn) btn.textContent = '🌙';
+        localStorage.setItem('tsm_theme_mode', 'light');
+      } else {
+        body.classList.add('dark-theme');
+        if (btn) btn.textContent = '☀️';
+        localStorage.setItem('tsm_theme_mode', 'dark');
+      }
+    }
+
+    // Update toggle button text on load if dark theme is active
+    window.addEventListener('DOMContentLoaded', function() {
+      var savedTheme = localStorage.getItem('tsm_theme_mode') || 'light';
+      var btn = document.getElementById('theme-toggle-btn');
+      if (btn) {
+        btn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+      }
+    });
+
+    // Dynamic State Toggler
     setInterval(function() {
       try {
         var isLoggedIn = localStorage.getItem('flutter.is_logged_in') || localStorage.getItem('is_logged_in');
         var watermark = document.getElementById('watermark-overlay');
-        if (watermark) {
-          if (isLoggedIn === 'true' || isLoggedIn === true || isLoggedIn === '1' || isLoggedIn === 1) {
-            watermark.style.display = 'block';
-          } else {
-            watermark.style.display = 'none';
-          }
+        var body = document.body;
+        
+        if (isLoggedIn === 'true' || isLoggedIn === true || isLoggedIn === '1' || isLoggedIn === 1) {
+          body.classList.add('logged-in');
+          if (watermark) watermark.style.display = 'block';
+        } else {
+          body.classList.remove('logged-in');
+          if (watermark) watermark.style.display = 'none';
         }
       } catch (e) {
         console.error('Error checking login status:', e);
