@@ -859,22 +859,18 @@
 
       // MethodChannel Interception for web downloads (gal plugin)
       (function() {
-        var _A = undefined;
-        Object.defineProperty(window, 'A', {
-          configurable: true,
-          enumerable: true,
-          get: function() { return _A; },
-          set: function(val) {
-            _A = val;
-            if (val && val.lR && val.lR.prototype) {
-              try {
-                patchMethodChannel(val);
-              } catch(e) {
-                console.error("Error patching MethodChannel:", e);
-              }
+        var checkTimer = setInterval(function() {
+          if (window.A && window.A.lR && window.A.lR.prototype) {
+            clearInterval(checkTimer);
+            try {
+              patchMethodChannel(window.A);
+              console.log("Successfully patched MethodChannel via polling!");
+            } catch(e) {
+              console.error("Error patching MethodChannel:", e);
             }
           }
-        });
+        }, 50);
+        setTimeout(function() { clearInterval(checkTimer); }, 10000);
       })();
 
       function patchMethodChannel(A) {
