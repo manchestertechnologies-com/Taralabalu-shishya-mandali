@@ -938,16 +938,22 @@ a { text-decoration: none; color: inherit; }
   position: fixed;
   inset: 0;
   background-image: url('assets/temple.jpg');
-  background-position: center;
+  background-position: calc(50% + 130px) center; /* center in the main content section */
   background-repeat: no-repeat;
-  background-size: cover;
-  opacity: 0.035; /* soft premium watermark */
+  background-size: 550px; /* clean fixed emblem size */
+  opacity: 0.12; /* highly visible but elegant (12% opacity) */
   pointer-events: none;
   z-index: -1;
   transition: opacity 0.3s ease;
 }
 body.dark-theme .app-watermark {
-  opacity: 0.015; /* even softer watermark in dark mode */
+  opacity: 0.04; /* more visible in dark mode */
+}
+@media (max-width: 900px) {
+  .app-watermark {
+    background-position: center center;
+    background-size: 80vw; /* scales nicely on mobile */
+  }
 }
 
 /* =====================================================
