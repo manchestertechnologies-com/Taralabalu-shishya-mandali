@@ -946,20 +946,14 @@ a { text-decoration: none; color: inherit; }
   position: absolute;
   inset: 0;
   background-image: url('assets/temple.jpg');
-  background-position: calc(50% + 130px) center; /* center in the main content section */
+  background-position: center; /* center of the whole window */
   background-repeat: no-repeat;
-  background-size: 550px; /* clean fixed emblem size */
-  opacity: 0.12; /* highly visible but elegant (12% opacity) */
+  background-size: cover; /* cover the whole window */
+  opacity: 0.22; /* highly visible watermark (22% opacity) */
   transition: opacity 0.3s ease;
 }
 body.dark-theme .app-watermark::before {
-  opacity: 0.04; /* more visible in dark mode */
-}
-@media (max-width: 900px) {
-  .app-watermark::before {
-    background-position: center center;
-    background-size: 80vw; /* scales nicely on mobile */
-  }
+  opacity: 0.08; /* visible in dark mode */
 }
 
 /* =====================================================
