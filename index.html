@@ -1,1004 +1,989 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="/Taralabalu-shishya-mandali/">
-
-  <script>
-    // Programmatically clear service worker and cache storage to prevent caching issues
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        if (registrations.length > 0) {
-          for (var i = 0; i < registrations.length; i++) {
-            registrations[i].unregister();
-          }
-          console.log('Active service workers cleared, reloading...');
-          window.location.reload();
-        }
-      });
-    }
-    if ('caches' in window) {
-      caches.keys().then(function(names) {
-        for (var i = 0; i < names.length; i++) {
-          caches.delete(names[i]);
-          console.log('Cache storage cleared:', names[i]);
-        }
-      });
-    }
-
-    // ── LOCAL STORAGE CENSUS DATABASE EMULATION LAYER ───────
-    function generateUUID() {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-      });
-    }
-
-    // Initialize database arrays in localStorage if they don't exist
-    if (!localStorage.getItem('census_households')) {
-      localStorage.setItem('census_households', '[]');
-    }
-    if (!localStorage.getItem('census_members')) {
-      localStorage.setItem('census_members', '[]');
-    }
-    if (!localStorage.getItem('census_sequential_id_counter')) {
-      localStorage.setItem('census_sequential_id_counter', '0');
-    }
-
-    // Map for temporary Blob URLs to Base64 strings
-    window.blobToBase64Map = window.blobToBase64Map || {};
-
-    // Helpers to handle Dart String wrappers in compiled Javascript
-    function sanitizePlaceholder(val) {
-      if (!val) return null;
-      var s = String(val).trim();
-      if (s === "" || 
-          s.indexOf("State /") === 0 || 
-          s.indexOf("District /") === 0 || 
-          s.indexOf("Taluk /") === 0 || 
-          s.indexOf("Nagara /") === 0 || 
-          s.indexOf("Ward /") === 0 || 
-          s.indexOf("Relationship /") === 0 || 
-          s.indexOf("Marital Status /") === 0 ||
-          s.indexOf("Country /") === 0) {
-        return null;
-      }
-      return val;
-    }
-
-    function unwrapString(str) {
-      if (!str) return "";
-      var val = "";
-      if (typeof str === 'string') val = str;
-      else if (typeof str === 'object') {
-        if (typeof str.a === 'string') val = str.a;
-        else if (typeof str.g === 'string') val = str.g;
-        else val = str.toString();
-      } else {
-        val = String(str);
-      }
-      return sanitizePlaceholder(val) || "";
-    }
-
-    function wrapString(str) {
-      return str;
-    }
-
-    // Get User Sequential ID lookup helper
-    window.personIdMap = window.personIdMap || {};
-    window.personIdCounter = window.personIdCounter || 0;
-    
-    window.getSequentialId = function(name, phoneOrAge) {
-      var cleanName = unwrapString(name).trim().toLowerCase();
-      if (!cleanName) return "1";
-      
-      // 1. Look in localStorage members database
-      var members = JSON.parse(localStorage.getItem('census_members') || '[]');
-      var found = members.find(function(m) {
-        return unwrapString(m.name).trim().toLowerCase() === cleanName;
-      });
-      if (found && found.sequential_id) return found.sequential_id.toString();
-      
-      // 2. Look in memory map
-      var key = cleanName + "_" + unwrapString(phoneOrAge).trim();
-      if (!window.personIdMap[key]) {
-        var maxDbId = members.reduce(function(max, m) {
-          return (m.sequential_id && m.sequential_id > max) ? m.sequential_id : max;
-        }, 0);
-        window.personIdCounter = Math.max(window.personIdCounter || 0, maxDbId) + 1;
-        window.personIdMap[key] = window.personIdCounter;
-      }
-      return window.personIdMap[key].toString();
-    };
-
-    // Intercept standard fetch requests to redirect Supabase queries to localStorage
-    (function() {
-      var originalFetch = window.fetch;
-      window.fetch = async function(resource, init) {
-        var url = typeof resource === 'string' ? resource : resource.url;
-        
-        if (url && url.indexOf('.supabase.co/rest/v1/') !== -1) {
-          console.log('[Mock Supabase Fetch]:', url, init);
-          try {
-            var parsedUrl = new URL(url);
-            var path = parsedUrl.pathname;
-            var method = init ? (init.method || 'GET').toUpperCase() : 'GET';
-            
-            var parts = path.split('/');
-            var table = parts[parts.length - 1];
-            
-            // 1. GET HOUSEHOLD MEMBERS (Admin list)
-            if (table === 'household_members' && method === 'GET') {
-              var members = JSON.parse(localStorage.getItem('census_members') || '[]');
-              var households = JSON.parse(localStorage.getItem('census_households') || '[]');
-              
-              var joinedData = members.map(function(m) {
-                var hh = households.find(function(h) { return h.id === m.household_id; }) || {};
-                return Object.assign({}, m, {
-                  household_created_at: hh.created_at || new Date().toISOString(),
-                  household_user_id: hh.user_id || 'anonymous'
-                });
-              });
-              
-              // Sort by sequential ID descending so newest users appear first
-              joinedData.sort(function(a, b) {
-                return (b.sequential_id || 0) - (a.sequential_id || 0);
-              });
-              
-              return new Response(JSON.stringify(joinedData), {
-                status: 200,
-                headers: {
-                  'Content-Type': 'application/json',
-                  'content-range': '0-' + (joinedData.length - 1) + '/' + joinedData.length
-                }
-              });
-            }
-            
-            // 2. POST HOUSEHOLDS (Add new household)
-            if (table === 'households' && method === 'POST') {
-              var body = JSON.parse(init.body || '{}');
-              var households = JSON.parse(localStorage.getItem('census_households') || '[]');
-              
-              var newId = generateUUID();
-              var newHousehold = {
-                id: newId,
-                user_id: body.user_id || 'anonymous',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              };
-              
-              households.push(newHousehold);
-              localStorage.setItem('census_households', JSON.stringify(households));
-              
-              // Clear autosave draft on successful submission
-              localStorage.removeItem('census_autosave_form');
-              
-              return new Response(JSON.stringify(newHousehold), {
-                status: 201,
-                headers: { 'Content-Type': 'application/json' }
-              });
-            }
-            
-            // 3. POST PERSONS (Add household member)
-            if (table === 'persons' && method === 'POST') {
-              var body = JSON.parse(init.body || '{}');
-              var members = JSON.parse(localStorage.getItem('census_members') || '[]');
-              
-              var householdId = body.household_id;
-              
-              // Fetch or create sequential ID for this household
-              var seqId = localStorage.getItem('household_seq_' + householdId);
-              if (!seqId) {
-                var counter = parseInt(localStorage.getItem('census_sequential_id_counter') || '0') + 1;
-                localStorage.setItem('census_sequential_id_counter', counter.toString());
-                localStorage.setItem('household_seq_' + householdId, counter.toString());
-                seqId = counter.toString();
-              }
-              
-              var newId = generateUUID();
-              var newMember = Object.assign({}, body, {
-                id: newId,
-                sequential_id: parseInt(seqId),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
-              
-              members.push(newMember);
-              localStorage.setItem('census_members', JSON.stringify(members));
-              
-              return new Response(JSON.stringify(newMember), {
-                status: 201,
-                headers: { 'Content-Type': 'application/json' }
-              });
-            }
-            
-            // Fallback response
-            return new Response(JSON.stringify([]), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            });
-          } catch(err) {
-            console.error('[Mock Supabase Fetch Error]:', err);
-            return new Response(JSON.stringify({ error: err.message }), {
-              status: 500,
-              headers: { 'Content-Type': 'application/json' }
-            });
-          }
-        }
-        
-        return originalFetch.apply(this, arguments);
-      };
-    })();
-  </script>
-
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Taralabalu Shishya Mandali Platform.">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Taralabalu Shishya Mandali">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>Taralabalu Shishya Mandali</title>
-  <link rel="manifest" href="manifest.json">
-
-  <style>
-    /* Premium custom scrollbar styling */
-    ::-webkit-scrollbar {
-      width: 10px;
-      height: 10px;
-    }
-    ::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.05);
-    }
-    ::-webkit-scrollbar-thumb {
-      background: linear-gradient(135deg, #00b4d8, #ff9f00);
-      border-radius: 5px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: linear-gradient(135deg, #00e5ff, #ffb700);
-    }
-
-    /* Ambient vignette overlay for login/splash screens with premium colors */
-    #login-vignette {
-      position: fixed;
-      left: 0;
-      top: 0;
-      width: 100vw;
-      height: 100vh;
-      pointer-events: none;
-      z-index: 999998; /* Under watermark but above Flutter canvas */
-      background: radial-gradient(circle, transparent 30%, rgba(42, 8, 92, 0.4) 75%, rgba(0, 0, 0, 0.85) 100%);
-      box-shadow: inset 0 0 150px rgba(0, 180, 216, 0.2); /* Glowing cyan aura */
-      display: block;
-      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
-    }
-    body.logged-in #login-vignette {
-      opacity: 0;
-      visibility: hidden;
-    }
-
-    /* Interactive particle canvas backdrop on login */
-    #login-particles {
-      position: fixed;
-      left: 0;
-      top: 0;
-      width: 100vw;
-      height: 100vh;
-      pointer-events: none;
-      z-index: 999997; /* Behind vignette and watermark, above canvas */
-      display: block;
-      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
-    }
-    body.logged-in #login-particles {
-      opacity: 0;
-      visibility: hidden;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow-x: hidden;
-    }
-
-    /* Fixed watermark overlay - centered and stretched to cover entire window on mobile */
-    #watermark-overlay {
-      position: fixed;
-      left: 0;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 100%;
-      height: 100%;
-      background-image: url('assets/assets/app_icon.jpg');
-      background-position: center center !important;
-      background-repeat: no-repeat;
-      background-size: cover; /* Cover entire viewport height and width properly */
-      opacity: 0.15; /* Less opacity as requested */
-      pointer-events: none;
-      z-index: 999999; /* Higher than Flutter view layer */
-      display: none; /* Toggled dynamically on login status */
-      transition: opacity 0.5s ease;
-    }
-
-    /* Unified permanent "WOW" theme color shift for the entire Flutter view layer */
-    flt-glass-pane {
-      animation: appFadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    @keyframes appFadeIn {
-      0% { opacity: 0; transform: scale(0.98); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-
-
-
-    /* Mutt-themed html loading screen to prevent initial white screen flash */
-    #html-loader {
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(circle, #1a0933, #0d0221, #000000);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999999;
-      opacity: 1;
-      transition: opacity 0.5s ease, visibility 0.5s;
-    }
-    .spinner {
-      width: 65px;
-      height: 65px;
-      border: 4px solid rgba(255, 111, 0, 0.15);
-      border-top: 4px solid #FF6F00;
-      border-left: 4px solid #00BCD4;
-      border-radius: 50%;
-      animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-      box-shadow: 0 0 20px rgba(255, 111, 0, 0.3);
-    }
-    .loader-text {
-      margin-top: 24px;
-      color: white;
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      font-size: 16px;
-      font-weight: 500;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      animation: pulseText 1.5s infinite alternate;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    @keyframes pulseText {
-      0% { opacity: 0.5; }
-      100% { opacity: 1; }
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Taralabalu Shishya Mandali - Sri Taralabalu Jagadguru Brihanmath, Sirigere">
+  <title>Taralabalu Shishya Mandali / ತರಳಬಾಳು ಶಿಷ್ಯ ಮಂಡಳಿ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
 </head>
-<body>
-  <!-- Custom Loading Splash Screen -->
-  <div id="html-loader">
-    <div class="spinner"></div>
-    <div class="loader-text">Taralabalu Shishya Mandali</div>
+<body class="light-theme"> <!-- Default light theme -->
+
+<!-- ============ BACKGROUND WATERMARK ============ -->
+<div class="app-watermark"></div>
+
+<!-- ============ SPLASH SCREEN ============ -->
+<div id="splash-screen" class="splash-screen">
+  <div class="splash-content">
+    <div class="splash-card">
+      <img src="assets/rishi.jpg" alt="Sri Taralabalu Jagadguru" class="splash-card-img">
+    </div>
+    <div class="splash-title">
+      <h1>ತರಳಬಾಳು ಶಿಷ್ಯ ಮಂಡಳಿ</h1>
+      <h2>Taralabalu Shishya Mandali</h2>
+      <p>ಸದಸ್ಯರ ದತ್ತಾಂಶ ಸಂಗ್ರಹಣಾ ವೇದಿಕೆ / Member Data Platform</p>
+    </div>
+    <div class="splash-loader">
+      <div class="loader-bar"></div>
+    </div>
+    <p class="splash-tagline">ಶ್ರೀ ತರಳಬಾಳು ಜಗದ್ಗುರು ಬೃಹನ್ಮಠ, ಸಿರಿಗೆರೆ</p>
   </div>
+  <div class="splash-bg-effects">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
+</div>
 
-  <!-- Ambient Login Vignette and Particles -->
-  <div id="login-vignette"></div>
-  <canvas id="login-particles"></canvas>
+<!-- ============ LOGIN PAGE ============ -->
+<div id="login-page" class="page hidden">
+  <div class="login-container">
+    <div class="login-left">
+      <div class="login-brand">
+        <div class="brand-icon-oval">
+          <img src="assets/temple.jpg" alt="Sirigere Mutt" class="brand-oval-img">
+        </div>
+        <div>
+          <h2>ತರಳಬಾಳು ಶಿಷ್ಯ ಮಂಡಳಿ</h2>
+          <h3>Taralabalu Shishya Mandali</h3>
+        </div>
+      </div>
+      <div class="login-info">
+        <div class="guru-portrait">
+          <img src="assets/temple.jpg" alt="Sirigere Mutt" class="guru-portrait-img">
+        </div>
+        <h1>ನೋಂದಣಿ ಮತ್ತು ಮಾಹಿತಿ ವೇದಿಕೆ<br><span class="gradient-text">Registration & Info Portal</span></h1>
+        <p>ಶ್ರೀ ಜಗದ್ಗುರು ತರಳಬಾಳು ಬೃಹನ್ಮಠದ ಸದಸ್ಯರ ಪವಿತ್ರ ನೋಂದಣಿ ಕಾರ್ಯಕ್ಕೆ ಸುಸ್ವಾಗತ.</p>
+        <div class="login-stats">
+          <div class="stat-card">
+            <div class="stat-number">10K+</div>
+            <div class="stat-label">ಕುಟುಂಬಗಳು / Households</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">50K+</div>
+            <div class="stat-label">ಶಿಷ್ಯರು / Shishyas</div>
+          </div>
+        </div>
+      </div>
+      <div class="left-bg-effects">
+        <div class="left-orb left-orb-1"></div>
+      </div>
+    </div>
+    <div class="login-right">
+      <div class="login-top-bar">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+      </div>
+      <div class="login-form-container">
+        <!-- Step 1: Phone Number -->
+        <div id="phone-step" class="form-step active">
+          <div class="form-header">
+            <h2>ಲಾಗಿನ್ / Login</h2>
+            <p>ಮುಂದುವರೆಯಲು ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ <br> Enter registered mobile number to continue</p>
+          </div>
+          <div class="role-selector">
+            <button id="btn-user-role" class="role-btn active" onclick="selectRole('user')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              ಸ್ವಯಂಸೇವಕ / Volunteer
+            </button>
+            <button id="btn-admin-role" class="role-btn" onclick="selectRole('admin')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              ನಿರ್ವಾಹಕರು / Admin
+            </button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ಮೊಬೈಲ್ ಸಂಖ್ಯೆ / Mobile Number</label>
+            <div class="phone-input-wrapper">
+              <span class="country-code">+91</span>
+              <input type="tel" id="phone-input" class="form-input phone-input" placeholder="Enter 10-digit number" maxlength="10" oninput="validatePhone()">
+            </div>
+            <span id="phone-error" class="error-msg hidden">ದಯವಿಟ್ಟು 10 ಅಂಕಿಗಳ ಸರಿಯಾದ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ / Enter valid 10-digit number</span>
+          </div>
+          <button id="send-otp-btn" class="btn-primary" onclick="sendOTP()" disabled>
+            <span>ಒಟಿಪಿ ಪಡೆಯಿರಿ / Send OTP</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+          <p class="form-note">ಪರಿಶೀಲನೆಗಾಗಿ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಗೆ ಒಟಿಪಿ ಕಳುಹಿಸಲಾಗುವುದು / An OTP will be sent to your mobile number</p>
+        </div>
 
-  <!-- Watermark Element -->
-  <div id="watermark-overlay"></div>
+        <!-- Step 2: OTP Verification -->
+        <div id="otp-step" class="form-step">
+          <div class="back-btn-wrap">
+            <button class="back-btn" onclick="goBackToPhone()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              ಹಿಂದಕ್ಕೆ / Back
+            </button>
+          </div>
+          <div class="form-header">
+            <h2>ಒಟಿಪಿ ಪರಿಶೀಲನೆ / Verify OTP</h2>
+            <p id="otp-subtitle">ನಿಮ್ಮ ಸಂಖ್ಯೆಗೆ ಕಳುಹಿಸಲಾದ ಒಟಿಪಿ ನಮೂದಿಸಿ / Enter OTP sent to <strong id="display-phone"></strong></p>
+          </div>
+          <div class="otp-container">
+            <input type="text" class="otp-input" maxlength="1" id="otp-0" oninput="otpInput(0)" onkeydown="otpKeydown(event, 0)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-1" oninput="otpInput(1)" onkeydown="otpKeydown(event, 1)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-2" oninput="otpInput(2)" onkeydown="otpKeydown(event, 2)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-3" oninput="otpInput(3)" onkeydown="otpKeydown(event, 3)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-4" oninput="otpInput(4)" onkeydown="otpKeydown(event, 4)">
+            <input type="text" class="otp-input" maxlength="1" id="otp-5" oninput="otpInput(5)" onkeydown="otpKeydown(event, 5)">
+          </div>
+          <span id="otp-error" class="error-msg hidden">ತಪ್ಪು ಒಟಿಪಿ. ದಯವಿಟ್ಟು ಮತ್ತೊಮ್ಮೆ ಪ್ರಯತ್ನಿಸಿ / Invalid OTP. Please try again.</span>
+          <button class="btn-primary" id="verify-otp-btn" onclick="verifyOTP()">
+            <span>ಖಚಿತಪಡಿಸಿ / Verify & Login</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <div class="resend-otp">
+            <span>ಒಟಿಪಿ ಬಂದಿಲ್ಲವೇ? / Didn't receive?</span>
+            <button id="resend-btn" class="resend-link" onclick="resendOTP()">ಮರುಕಳುಹಿಸಿ / Resend OTP</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
+<!-- ============ USER DASHBOARD ============ -->
+<div id="user-dashboard" class="page hidden">
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">
+            <img src="assets/temple.jpg" alt="Logo" style="width: 24px; height: 24px; object-fit: contain;">
+          </div>
+          <span>ಶಿಷ್ಯ ಮಂಡಳಿ / Shishya Mandali</span>
+        </div>
+        <button class="sidebar-close" onclick="toggleSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="sidebar-user">
+        <div class="user-avatar">
+          <span id="user-avatar-text">S</span>
+        </div>
+        <div class="user-info">
+          <div id="sidebar-user-name" class="user-name">ಸದಸ್ಯ / User</div>
+          <div id="sidebar-user-phone" class="user-phone">+91 XXXXXXXXXX</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" onclick="showSection('dashboard-home', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ / Dashboard
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('my-households', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          ಕುಟುಂಬಗಳು / Households
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('add-household', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          ಕುಟುಂಬ ಸೇರಿಸಿ / Add Household
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('view-cards', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          ಕಾರ್ಡ್‌ಗಳು / ID Cards
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('my-profile', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          ನನ್ನ ವಿವರ / My Profile
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          ನಿರ್ಗಮನ / Logout
+        </button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="app-header">
+        <button class="menu-btn" onclick="toggleSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="header-title" id="page-title">ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ / Dashboard</div>
+        <div class="header-actions">
+          <button class="theme-toggle" onclick="toggleTheme()" style="margin-right: 12px;">
+            <span class="theme-icon">🌙</span>
+          </button>
+          <div class="header-user" onclick="showSection('my-profile', document.querySelector('.nav-item:nth-child(5)'))">
+            <div class="header-avatar">
+              <span id="header-avatar-text">S</span>
+            </div>
+          </div>
+        </div>
+      </header>
 
-  <!-- Theme and Watermark Script -->
-  <script>
+      <!-- Dashboard Home -->
+      <section id="section-dashboard-home" class="content-section active">
+        <!-- Admin Broadcast Message Board -->
+        <div id="broadcast-message-board" class="broadcast-board hidden">
+          <div class="broadcast-header">
+            <span class="broadcast-tag">📢 ಜಗದ್ಗುರುಗಳ ಸಂದೇಶ / Javadguru's Message</span>
+            <span class="broadcast-time" id="broadcast-msg-time">Just now</span>
+          </div>
+          <div class="broadcast-body">
+            <div id="broadcast-msg-image-wrap" class="broadcast-img-wrapper hidden">
+              <img id="broadcast-msg-image" src="" alt="Broadcast Image" class="broadcast-img">
+            </div>
+            <p id="broadcast-msg-text" class="broadcast-text">ಮಂಗಳಕರವಾದ ಸಂದೇಶ...</p>
+          </div>
+        </div>
 
+        <div class="section-header">
+          <div>
+            <h1 id="welcome-msg">ಶುಭೋದಯ, ಸದಸ್ಯರೇ / Welcome, User!</h1>
+            <p class="subtitle" id="user-phone-display">Mobile: +91 XXXXXXXXXX</p>
+          </div>
+          <div class="header-date" id="current-date"></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="total-households">0</div>
+              <div class="stat-desc">ಒಟ್ಟು ಕುಟುಂಬಗಳು / Households</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="total-members">0</div>
+              <div class="stat-desc">ಒಟ್ಟು ಸದಸ್ಯರು / Members</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="today-entries">0</div>
+              <div class="stat-desc">ಇಂದಿನ ನೋಂದಣಿ / Today's Entries</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">ಸಕ್ರಿಯ / Active</div>
+              <div class="stat-desc">ಸ್ಥಿತಿ / Status</div>
+            </div>
+          </div>
+        </div>
 
-    // ── INTERACTIVE CANVAS PARTICLES ──────────────────────
-    var canvas = document.getElementById('login-particles');
-    var ctx = canvas.getContext('2d');
-    var particles = [];
-    var maxParticles = 40;
-    var animateParticles = true;
+        <div class="dashboard-grid">
+          <div class="dash-card">
+            <div class="card-header">
+              <h3>ಇತ್ತೀಚಿನ ಕುಟುಂಬಗಳು / Recent Households</h3>
+              <button class="card-link" onclick="showSection('my-households', document.querySelector('.nav-item:nth-child(2)'))">ಎಲ್ಲವನ್ನೂ ವೀಕ್ಷಿಸಿ / View All</button>
+            </div>
+            <div id="recent-households-list" class="households-preview">
+              <div class="empty-state-small">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <p>ಯಾವುದೇ ಕುಟುಂಬಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ / No households added yet</p>
+              </div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="card-header">
+              <h3>ತ್ವರಿತ ಕ್ರಿಯೆಗಳು / Quick Actions</h3>
+            </div>
+            <div class="quick-actions">
+              <button class="quick-action-btn" onclick="showSection('add-household', document.querySelector('.nav-item:nth-child(3)'))">
+                <div class="qa-icon qa-blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                </div>
+                <span>ಕುಟುಂಬ ಸೇರಿಸಿ / Add Household</span>
+              </button>
+              <button class="quick-action-btn" onclick="showSection('my-households', document.querySelector('.nav-item:nth-child(2)'))">
+                <div class="qa-icon qa-green">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </div>
+                <span>ಕುಟುಂಬಗಳ ಪಟ್ಟಿ / View List</span>
+              </button>
+              <button class="quick-action-btn" onclick="showSection('view-cards', document.querySelector('.nav-item:nth-child(4)'))">
+                <div class="qa-icon qa-purple">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <span>ಕಾರ್ಡ್‌ಗಳು / ID Cards</span>
+              </button>
+              <button class="quick-action-btn" onclick="logout()">
+                <div class="qa-icon qa-red">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </div>
+                <span>ಲಾಗ್ ಔಟ್ / Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+      <!-- My Households -->
+      <section id="section-my-households" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>ನನ್ನ ಕುಟುಂಬಗಳು / Registered Households</h1>
+            <p class="subtitle">ನೀವು ನೋಂದಾಯಿಸಿದ ಎಲ್ಲಾ ಕುಟುಂಬಗಳ ವಿವರಗಳು / List of households registered by you</p>
+          </div>
+          <button class="btn-primary-sm" onclick="showSection('add-household', document.querySelector('.nav-item:nth-child(3)'))">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            ಹೊಸ ಕುಟುಂಬ ಸೇರಿಸಿ / Add New
+          </button>
+        </div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="household-search" placeholder="ಕುಟುಂಬದ ಮುಖ್ಯಸ್ಥರ ಹೆಸರಿನಿಂದ ಹುಡುಕಿ / Search by name..." oninput="filterHouseholds()">
+        </div>
+        <div id="households-grid" class="households-grid">
+          <div class="empty-state">
+            <div class="empty-icon">🏠</div>
+            <h3>ಯಾವುದೇ ಕುಟುಂಬಗಳಿಲ್ಲ / No Households Added</h3>
+            <p>ನಿಮ್ಮ ಮೊದಲ ಕುಟುಂಬದ ವಿವರವನ್ನು ನಮೂದಿಸಲು ಆರಂಭಿಸಿ / Start by adding your first household.</p>
+            <button class="btn-primary" onclick="showSection('add-household', document.querySelector('.nav-item:nth-child(3)'))">
+              <span>ಪ್ರಾರಂಭಿಸಿ / Add Now</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
 
-    // Mouse coordinates inside particle network
-    var pMouse = { x: null, y: null, radius: 150 };
-    window.addEventListener('mousemove', function(e) {
-      pMouse.x = e.clientX;
-      pMouse.y = e.clientY;
-    });
-    window.addEventListener('mouseout', function() {
-      pMouse.x = null;
-      pMouse.y = null;
-    });
+      <!-- Add Household -->
+      <section id="section-add-household" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>ಕುಟುಂಬದ ನೋಂದಣಿ / Add New Household</h1>
+            <p class="subtitle">ಕುಟುಂಬದ ಮುಖ್ಯಸ್ಥರ ಮಾಹಿತಿ ಹಾಗೂ ಇತರ ಸದಸ್ಯರನ್ನು ಸೇರಿಸಿ / Register head and family members</p>
+          </div>
+        </div>
+        <div class="form-wizard">
+          <div class="wizard-steps">
+            <div class="wizard-step active" id="wstep-1">
+              <div class="step-num">1</div>
+              <span>ಮುಖ್ಯಸ್ಥರು / Family Head</span>
+            </div>
+            <div class="wizard-divider"></div>
+            <div class="wizard-step" id="wstep-2">
+              <div class="step-num">2</div>
+              <span>ವೃತ್ತಿ ಮಾಹಿತಿ / Profession</span>
+            </div>
+            <div class="wizard-divider"></div>
+            <div class="wizard-step" id="wstep-3">
+              <div class="step-num">3</div>
+              <span>ವಿಳಾಸ / Location</span>
+            </div>
+            <div class="wizard-divider"></div>
+            <div class="wizard-step" id="wstep-4">
+              <div class="step-num">4</div>
+              <span>ಸದಸ್ಯರು / Members</span>
+            </div>
+          </div>
 
-    class Particle {
-      constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.vx = (Math.random() - 0.5) * 0.8;
-        this.vy = (Math.random() - 0.5) * 0.8;
-        this.radius = Math.random() * 2.5 + 1;
-        this.color = Math.random() > 0.5 ? 'rgba(0, 180, 216, 0.45)' : 'rgba(255, 159, 0, 0.45)';
-      }
-      update() {
-        // Move
-        this.x += this.vx;
-        this.y += this.vy;
+          <!-- Step 1: Head of Household -->
+          <div class="wizard-content" id="wcontent-1">
+            <div class="form-card">
+              <div class="form-card-header">
+                <h3>ಕುಟುಂಬದ ಮುಖ್ಯಸ್ಥರ ಮಾಹಿತಿ / Head of Household Info</h3>
+                <p>ಕುಟುಂಬದ ಮುಖ್ಯಸ್ಥರ ವೈಯಕ್ತಿಕ ವಿವರಗಳು / Enter personal details of the head of household</p>
+              </div>
+              
+              <!-- Member Avatar Photo Upload Frame -->
+              <div class="avatar-upload-container">
+                <div class="avatar-preview-wrap">
+                  <img id="head-avatar-preview" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='1.5'><circle cx='12' cy='8' r='4'/><path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/></svg>" alt="Preview" class="avatar-preview">
+                </div>
+                <div class="avatar-upload-btn-wrap">
+                  <label for="head-photo-input" class="avatar-upload-label">
+                    📸 ಫೋಟೋ ಸೇರಿಸಿ / Add Photo
+                  </label>
+                  <input type="file" id="head-photo-input" accept="image/*" onchange="previewAvatar(event, 'head-avatar-preview')" style="display: none;">
+                </div>
+              </div>
 
-        // Bounce on edges
-        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">ಪೂರ್ಣ ಹೆಸರು / Full Name *</label>
+                  <input type="text" id="head-name" class="form-input" placeholder="Enter full name">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಸಂಬಂಧ / Relationship</label>
+                  <input type="text" class="form-input" value="Head / ಮುಖ್ಯಸ್ಥ" disabled>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಜನ್ಮ ದಿನಾಂಕ / Date of Birth *</label>
+                  <input type="date" id="head-dob" class="form-input" onchange="calculateAge(this.value, 'head-age')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ವಯಸ್ಸು / Age *</label>
+                  <input type="number" id="head-age" class="form-input" placeholder="Age in years" min="0" max="150">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಲಿಂಗ / Gender *</label>
+                  <select id="head-gender" class="form-select">
+                    <option value="">ಲಿಂಗ ಆಯ್ಕೆಮಾಡಿ / Select Gender</option>
+                    <option value="Male">ಪುರುಷ / Male</option>
+                    <option value="Female">ಮಹಿಳೆ / Female</option>
+                    <option value="Other">ಇತರ / Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ವೈವಾಹಿಕ ಸ್ಥಿತಿ / Marital Status</label>
+                  <select id="head-marital" class="form-select">
+                    <option value="">ಸ್ಥಿತಿ ಆಯ್ಕೆಮಾಡಿ / Select Status</option>
+                    <option value="Single">ಅವಿವಾಹಿತ / Single</option>
+                    <option value="Married">ವಿವಾಹಿತ / Married</option>
+                    <option value="Widowed">ವಿಧವೆ/ವಿಧುರ / Widowed</option>
+                    <option value="Divorced">ವಿಚ್ಛೇದಿತ / Divorced</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಆಧಾರ್ ಸಂಖ್ಯೆ / Aadhaar Number</label>
+                  <input type="text" id="head-aadhaar" class="form-input" placeholder="12-digit number" maxlength="12">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಮೊಬೈಲ್ ಸಂಖ್ಯೆ / Mobile Number</label>
+                  <input type="tel" id="head-mobile" class="form-input" placeholder="10-digit mobile number" maxlength="10">
+                </div>
+              </div>
+              <div class="wizard-nav">
+                <div></div>
+                <button class="btn-primary" onclick="nextStep(1)">
+                  <span>ಮುಂದಕ್ಕೆ / Next</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
 
-        // Mouse attraction
-        if (pMouse.x !== null && pMouse.y !== null) {
-          let dx = pMouse.x - this.x;
-          let dy = pMouse.y - this.y;
-          let dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist < pMouse.radius) {
-            let force = (pMouse.radius - dist) / pMouse.radius;
-            this.x += (dx / dist) * force * 1.5;
-            this.y += (dy / dist) * force * 1.5;
-          }
-        }
-      }
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-      }
-    }
+          <!-- Step 2: Personal Details -->
+          <div class="wizard-content hidden" id="wcontent-2">
+            <div class="form-card">
+              <div class="form-card-header">
+                <h3>ವಿದ್ಯಾಭ್ಯಾಸ ಮತ್ತು ಉದ್ಯೋಗ ವಿವರ / Education & Profession</h3>
+                <p>ಕುಟುಂಬದ ಮುಖ್ಯಸ್ಥರ ವಿದ್ಯಾಭ್ಯಾಸ ಮತ್ತು ಉದ್ಯೋಗದ ವಿವರಗಳು / Enter education and occupation details</p>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">ವಿದ್ಯಾಭ್ಯಾಸ / Education Level</label>
+                  <select id="head-education" class="form-select">
+                    <option value="">ವಿದ್ಯಾಭ್ಯಾಸ ಆಯ್ಕೆಮಾಡಿ / Select Education</option>
+                    <option value="Illiterate">ಅನಕ್ಷರಸ್ಥ / Illiterate</option>
+                    <option value="Primary">ಪ್ರಾಥಮಿಕ ಶಾಲೆ / Primary (1-5)</option>
+                    <option value="Middle">ಪ್ರೌಢಶಾಲೆ / Middle (6-8)</option>
+                    <option value="Secondary">ಮೆಟ್ರಿಕ್ / Secondary (9-10)</option>
+                    <option value="Higher Secondary">ಪಿಯುಸಿ / Higher Secondary (11-12)</option>
+                    <option value="Diploma">ಡಿಪ್ಲೋಮಾ / Diploma</option>
+                    <option value="Graduate">ಪದವಿ / Graduate</option>
+                    <option value="Post Graduate">ಸ್ನಾತಕೋತ್ತರ / Post Graduate</option>
+                    <option value="Doctorate">ಪಿಎಚ್‌ಡಿ / Doctorate</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಉದ್ಯೋಗದ ವಲಯ / Employment Sector</label>
+                  <select id="head-employment" class="form-select">
+                    <option value="">ವಲಯ ಆಯ್ಕೆಮಾಡಿ / Select Sector</option>
+                    <option value="Agriculture">ಕೃಷಿ / Agriculture</option>
+                    <option value="Government">ಸರ್ಕಾರಿ ನೌಕರಿ / Government</option>
+                    <option value="Private">ಖಾಸಗಿ ನೌಕರಿ / Private</option>
+                    <option value="Self-Employed">ಸ್ವಯಂ ಉದ್ಯೋಗ / Self-Employed</option>
+                    <option value="Business">ವ್ಯಾಪಾರ / Business</option>
+                    <option value="Student">ವಿದ್ಯಾರ್ಥಿ / Student</option>
+                    <option value="Unemployed">ನಿರುದ್ಯೋಗಿ / Unemployed</option>
+                    <option value="Retired">ನಿವೃತ್ತ / Retired</option>
+                    <option value="Homemaker">ಮನೆಗೆಲಸ / Homemaker</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಉದ್ಯೋಗ / Occupation</label>
+                  <input type="text" id="head-occupation" class="form-input" placeholder="Enter occupation">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಕುಲ ಕಸುಬು / Traditional Occupation</label>
+                  <input type="text" id="head-trad-occupation" class="form-input" placeholder="Enter traditional occupation">
+                </div>
+              </div>
+              <div class="wizard-nav">
+                <button class="btn-secondary" onclick="prevStep(2)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                  <span>ಹಿಂದಕ್ಕೆ / Previous</span>
+                </button>
+                <button class="btn-primary" onclick="nextStep(2)">
+                  <span>ಮುಂದಕ್ಕೆ / Next</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
 
-    // Init particles
-    for (let i = 0; i < maxParticles; i++) {
-      particles.push(new Particle());
-    }
+          <!-- Step 3: Location -->
+          <div class="wizard-content hidden" id="wcontent-3">
+            <div class="form-card">
+              <div class="form-card-header">
+                <h3>ವಿಳಾಸದ ವಿವರಗಳು / Address & Location</h3>
+                <p>ವಾಸಸ್ಥಳದ ವಿವರಗಳು (ಪಿನ್ ಕೋಡ್ ಆಧಾರಿತ ಸ್ವಯಂ ಪೂರ್ಣಗೊಳ್ಳುವಿಕೆ) / Enter address (pincode autocomplete enabled)</p>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">ಪಿನ್ ಕೋಡ್ / Pincode *</label>
+                  <input type="text" id="head-pincode" class="form-input" placeholder="6-digit pincode" maxlength="6" oninput="autocompleteLocation(this.value)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ದೇಶ / Country</label>
+                  <select id="head-country" class="form-select">
+                    <option value="India">ಭಾರತ / India</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ರಾಜ್ಯ / State</label>
+                  <select id="head-state" class="form-select">
+                    <option value="">ರಾಜ್ಯ ಆಯ್ಕೆಮಾಡಿ / Select State</option>
+                    <option value="Karnataka">ಕರ್ನಾಟಕ / Karnataka</option>
+                    <option value="Maharashtra">ಮಹಾರಾಷ್ಟ್ರ / Maharashtra</option>
+                    <option value="Telangana">ತೆಲಂಗಾಣ / Telangana</option>
+                    <option value="Andhra Pradesh">ಆಂಧ್ರ ಪ್ರದೇಶ / Andhra Pradesh</option>
+                    <option value="Tamil Nadu">ತಮಿಳುನಾಡು / Tamil Nadu</option>
+                    <option value="Kerala">ಕೇರಳ / Kerala</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ಜಿಲ್ಲೆ / District</label>
+                  <input type="text" id="head-district" class="form-input" placeholder="Enter district">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ತಾಲ್ಲೂಕು / Taluk / Mandal</label>
+                  <input type="text" id="head-taluk" class="form-input" placeholder="Enter taluk">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ನಗರ / Nagara / Town</label>
+                  <input type="text" id="head-nagara" class="form-input" placeholder="Enter nagara/town">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ವಾರ್ಡ್ / ಗ್ರಾಮ / Ward / Village</label>
+                  <input type="text" id="head-ward" class="form-input" placeholder="Enter ward/village">
+                </div>
+              </div>
+              <div class="wizard-nav">
+                <button class="btn-secondary" onclick="prevStep(3)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                  <span>ಹಿಂದಕ್ಕೆ / Previous</span>
+                </button>
+                <button class="btn-primary" onclick="nextStep(3)">
+                  <span>ಮುಂದಕ್ಕೆ / Next</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
 
-    function drawParticles() {
-      if (!animateParticles) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Update & Draw
-      particles.forEach(p => {
-        p.update();
-        p.draw();
-      });
+          <!-- Step 4: Members -->
+          <div class="wizard-content hidden" id="wcontent-4">
+            <div class="form-card">
+              <div class="form-card-header">
+                <h3>ಕುಟುಂಬದ ಹೆಚ್ಚುವರಿ ಸದಸ್ಯರು / Extra Family Members</h3>
+                <p>ಹೆಚ್ಚುವರಿ ಸದಸ್ಯರ ಸಂಖ್ಯೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ / Select the number of extra family members</p>
+              </div>
+              
+              <div class="member-selector-block">
+                <label class="form-label">ಹೆಚ್ಚುವರಿ ಸದಸ್ಯರ ಸಂಖ್ಯೆ / Select extra members count:</label>
+                <select id="member-count-selector" class="form-select" onchange="adjustMemberForms(this.value)" style="max-width: 200px;">
+                  <option value="0">0 (ಯಾರೂ ಇಲ್ಲ / None)</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                </select>
+              </div>
 
-      // Draw lines
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          let dx = particles[i].x - particles[j].x;
-          let dy = particles[i].y - particles[j].y;
-          let dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            let alpha = (120 - dist) / 120 * 0.15;
-            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
-          }
-        }
-      }
-      requestAnimationFrame(drawParticles);
-    }
-    requestAnimationFrame(drawParticles);
+              <!-- Members dynamic list container -->
+              <div id="members-list"></div>
 
+              <!-- Empty state if 0 extra members -->
+              <div id="no-members-empty-state" class="empty-state-small" style="padding: 20px 0;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 40px; height: 40px; color: var(--text-muted); opacity: 0.5;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <p style="font-weight: 500; font-size: 0.9rem;">ಯಾವುದೇ ಹೆಚ್ಚುವರಿ ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆ ಮಾಡಿಲ್ಲ / No extra members selected.</p>
+              </div>
 
-    // ── OBSERVERS & GENERAL STATE TOGGLER ─────────────────
-    // Observer to fade out HTML loader when Flutter view renders
-    var observer = new MutationObserver(function(mutations) {
-      if (document.querySelector('flt-glass-pane') || document.querySelector('flutter-view')) {
-        var loader = document.getElementById('html-loader');
-        if (loader) {
-          loader.style.opacity = '0';
-          setTimeout(function() {
-            loader.style.visibility = 'hidden';
-            loader.remove();
-          }, 500);
-        }
-        observer.disconnect();
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+              <div class="wizard-nav">
+                <button class="btn-secondary" onclick="prevStep(4)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                  <span>ಹಿಂದಕ್ಕೆ / Previous</span>
+                </button>
+                <button class="btn-success" id="submit-household-btn" onclick="submitHousehold()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>ನೋಂದಾಯಿಸಿ ಮತ್ತು ಕಾರ್ಡ್ ಸೃಷ್ಟಿಸಿ / Register & Generate Cards</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-    // Dynamic State Toggler (Watermark and Particles Control)
-    setInterval(function() {
-      try {
-        var isLoggedIn = localStorage.getItem('flutter.is_logged_in') || localStorage.getItem('is_logged_in');
-        var watermark = document.getElementById('watermark-overlay');
-        var body = document.body;
+      <!-- View Cards -->
+      <section id="section-view-cards" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>ಗುರುತಿನ ಚೀಟಿಗಳು / ID Cards</h1>
+            <p class="subtitle">ಕುಟುಂಬದ ಎಲ್ಲಾ ಸದಸ್ಯರ ಡಿಜಿಟಲ್ ಗುರುತಿನ ಚೀಟಿಗಳು / Generated digital ID cards for all family members</p>
+          </div>
+          <button class="btn-primary-sm" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+            ಮುದ್ರಿಸಿ / Print Cards
+          </button>
+        </div>
+        <div id="cards-container" class="cards-grid">
+          <!-- ID Cards will be generated dynamically here -->
+        </div>
+      </section>
+
+      <!-- My Profile -->
+      <section id="section-my-profile" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>ನನ್ನ ವಿವರಗಳು / My Profile</h1>
+            <p class="subtitle">ನಿಮ್ಮ ವಿವರಗಳು / Your Volunteer account profile details</p>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div class="profile-avatar-large">
+            <span id="profile-avatar-letter">S</span>
+          </div>
+          <div class="profile-details">
+            <div class="profile-badge">ಸ್ವಯಂಸೇವಕ / Volunteer</div>
+            <h2 id="profile-name">Volunteer</h2>
+            <p id="profile-phone" class="profile-phone">+91 XXXXXXXXXX</p>
+          </div>
+          <div class="profile-stats">
+            <div class="p-stat">
+              <div class="p-stat-val" id="profile-households">0</div>
+              <div class="p-stat-label">ಕುಟುಂಬಗಳು / Households</div>
+            </div>
+            <div class="p-stat">
+              <div class="p-stat-val" id="profile-members">0</div>
+              <div class="p-stat-label">ಸದಸ್ಯರು / Members</div>
+            </div>
+            <div class="p-stat">
+              <div class="p-stat-val">ಸಕ್ರಿಯ / Active</div>
+              <div class="p-stat-label">ಸ್ಥಿತಿ / Status</div>
+            </div>
+          </div>
+          <button class="btn-danger" onclick="logout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            ಲಾಗ್ ಔಟ್ / Logout
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ============ ADMIN DASHBOARD ============ -->
+<div id="admin-dashboard" class="page hidden">
+  <div class="app-layout">
+    <!-- Admin Sidebar -->
+    <aside class="sidebar admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">
+            <img src="assets/temple.jpg" alt="Logo" style="width: 24px; height: 24px; object-fit: contain;">
+          </div>
+          <span>ನಿರ್ವಾಹಕರು / Admin</span>
+        </div>
+        <button class="sidebar-close" onclick="toggleAdminSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="sidebar-user">
+        <div class="user-avatar admin-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="user-info">
+          <div class="user-name">ನಿರ್ವಾಹಕರು / Administrator</div>
+          <div id="admin-phone-display" class="user-phone">+91 XXXXXXXXXX</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" onclick="showAdminSection('admin-overview', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          ಅವಲೋಕನ / Overview
+        </a>
+        <a href="#" class="nav-item" onclick="showAdminSection('admin-households', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          ಕುಟುಂಬಗಳು / Households
+        </a>
+        <a href="#" class="nav-item" onclick="showAdminSection('admin-enumerators', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          ಸ್ವಯಂಸೇವಕರು / Volunteers
+        </a>
+        <a href="#" class="nav-item" onclick="showAdminSection('admin-messages', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          ಸಂದೇಶಗಳು / Messages
+        </a>
+        <a href="#" class="nav-item" onclick="showAdminSection('admin-reports', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          ವರದಿಗಳು / Reports
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          ಲಾಗ್ ಔಟ್ / Logout
+        </button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="admin-sidebar-overlay" onclick="toggleAdminSidebar()"></div>
+
+    <!-- Admin Main Content -->
+    <main class="main-content">
+      <header class="app-header admin-header">
+        <button class="menu-btn" onclick="toggleAdminSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="header-title" id="admin-page-title">ಅವಲೋಕನ / Overview</div>
+        <div class="header-actions">
+          <button class="theme-toggle" onclick="toggleTheme()" style="margin-right: 12px;">
+            <span class="theme-icon">🌙</span>
+          </button>
+          <div class="admin-badge">ADMIN</div>
+        </div>
+      </header>
+
+      <!-- Admin Overview -->
+      <section id="section-admin-overview" class="content-section active">
+        <div class="section-header">
+          <div>
+            <h1>ನಿರ್ವಾಹಕ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ / Admin Overview</h1>
+            <p class="subtitle">ಮಾಹಿತಿ ವಿವರ ಅವಲೋಕನ / Data management overview</p>
+          </div>
+          <div class="header-date" id="admin-current-date"></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="admin-total-households">0</div>
+              <div class="stat-desc">ಒಟ್ಟು ಕುಟುಂಬಗಳು / Households</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="admin-total-members">0</div>
+              <div class="stat-desc">ಒಟ್ಟು ಸದಸ್ಯರು / Members</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="admin-total-enumerators">0</div>
+              <div class="stat-desc">ಸ್ವಯಂಸೇವಕರು / Volunteers</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-icon stat-icon-orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value" id="admin-today-entries">0</div>
+              <div class="stat-desc">ಇಂದಿನ ನೋಂದಣಿ / Today's Entries</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dash-card">
+            <div class="card-header">
+              <h3>ಇತ್ತೀಚಿನ ನೋಂದಣಿ ಕುಟುಂಬಗಳು / Recent Household Entries</h3>
+              <button class="card-link" onclick="showAdminSection('admin-households', document.querySelector('#admin-sidebar .nav-item:nth-child(2)'))">View All</button>
+            </div>
+            <div id="admin-recent-list" class="households-preview">
+              <div class="empty-state-small">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <p>ದತ್ತಾಂಶ ಲಭ್ಯವಿಲ್ಲ / No data yet</p>
+              </div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="card-header">
+              <h3>ಮಾಹಿತಿ ಹಂಚಿಕೆ ವಿಶ್ಲೇಷಣೆ / Data Overview</h3>
+            </div>
+            <div class="admin-chart-area" id="admin-chart">
+              <div class="chart-placeholder">
+                <div class="chart-bars">
+                  <div class="chart-bar" style="height:60%"><span>HH</span></div>
+                  <div class="chart-bar" style="height:80%"><span>MEM</span></div>
+                  <div class="chart-bar" style="height:45%"><span>VOL</span></div>
+                  <div class="chart-bar" style="height:90%"><span>NEW</span></div>
+                </div>
+                <div class="chart-label">ಮಾಹಿತಿ ನೋಂದಣಿ ಚಟುವಟಿಕೆ / Registration Activity</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin All Households -->
+      <section id="section-admin-households" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>ಎಲ್ಲಾ ನೋಂದಾಯಿತ ಕುಟುಂಬಗಳು / All Registered Households</h1>
+            <p class="subtitle">ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿರುವ ಎಲ್ಲಾ ಕುಟುಂಬಗಳ ಪಟ್ಟಿ / Complete database of registered households</p>
+          </div>
+        </div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="admin-search" placeholder="ಹುಡುಕಿ (ಹೆಸರು, ಪಿನ್ ಕೋಡ್, ತಾಲ್ಲೂಕು) / Search (Name, Pincode, Taluk)..." oninput="filterAdminHouseholds()">
+        </div>
+        <div id="admin-households-grid" class="households-grid">
+          <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <h3>ಮಾಹಿತಿ ಲಭ್ಯವಿಲ್ಲ / No Records</h3>
+            <p>ಸ್ವಯಂಸೇವಕರು ನೋಂದಾಯಿಸಿದ ನಂತರ ಇಲ್ಲಿ ಗೋಚರಿಸುತ್ತದೆ / Data will appear here once volunteers submit entries.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin Enumerators -->
+      <section id="section-admin-enumerators" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>ಸ್ವಯಂಸೇವಕರು / Registered Volunteers</h1>
+            <p class="subtitle">ಸಕ್ರಿಯವಾಗಿರುವ ಎಲ್ಲಾ ಸ್ವಯಂಸೇವಕರ ಪಟ್ಟಿ / List of active volunteers in the system</p>
+          </div>
+        </div>
+        <div id="enumerators-list" class="enumerators-grid">
+          <div class="empty-state">
+            <div class="empty-icon">👥</div>
+            <h3>ಯಾರೂ ನೋಂದಾಯಿಸಿಲ್ಲ / No Volunteers</h3>
+            <p>ಸ್ವಯಂಸೇವಕರು ಲಾಗಿನ್ ಆದ ನಂತರ ಇಲ್ಲಿ ಗೋಚರಿಸುತ್ತದೆ / Volunteers will appear here once they log in.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin Messages -->
+      <section id="section-admin-messages" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>ಶ್ರೀ ಮಠದ ಸಂದೇಶ ಫಲಕ / Broadcast Message Board</h1>
+            <p class="subtitle">ಬಳಕೆದಾರರಿಗೆ ಪ್ರಸಾರವಾಗುವ ಜಗದ್ಗುರುಗಳ ಸಂದೇಶಗಳು / Composed messages sent directly to volunteer welcome screens</p>
+          </div>
+        </div>
         
-        if (isLoggedIn === 'true' || isLoggedIn === true || isLoggedIn === '1' || isLoggedIn === 1) {
-          body.classList.add('logged-in');
-          if (watermark) watermark.style.display = 'block';
-          animateParticles = false; // Stop particles loop when logged in to save performance
-        } else {
-          body.classList.remove('logged-in');
-          if (watermark) watermark.style.display = 'none';
-          if (!animateParticles) {
-            animateParticles = true;
-            requestAnimationFrame(drawParticles);
-          }
-        }
-      } catch (e) {
-        console.error('Error checking login status:', e);
-      }
-    }, 500);
+        <div class="compose-message-box">
+          <div class="form-group">
+            <label class="form-label">ಸಂದೇಶ ವಿವರ / Message Text</label>
+            <textarea id="admin-message-text" class="form-input" rows="4" placeholder="ಇಲ್ಲಿ ಸಂದೇಶವನ್ನು ಬರೆಯಿರಿ / Type message text here..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ಚಿತ್ರ ಲಿಂಕ್ / Image URL (WhatsApp ತರಹ ಪ್ರಸಾರ ಮಾಡಲು / For Rich Media Broadast)</label>
+            <input type="text" id="admin-message-img-url" class="form-input" placeholder="https://example.com/image.jpg">
+          </div>
+          <button class="btn-primary" onclick="sendAdminBroadcastMessage()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <span>ಸಂದೇಶ ಪ್ರಸಾರ ಮಾಡಿ / Broadcast Message</span>
+          </button>
+        </div>
 
+        <div class="recent-messages-section">
+          <h3>ಇತ್ತೀಚಿನ ಪ್ರಸಾರ ಸಂದೇಶಗಳು / Recent Broadcasts</h3>
+          <div id="admin-messages-list" class="admin-broadcasts-list">
+            <p class="empty-text" style="color:var(--text-muted);">ಯಾವುದೇ ಸಂದೇಶಗಳಿಲ್ಲ / No messages broadcasted yet.</p>
+          </div>
+        </div>
+      </section>
 
-    // ── PHOTO URL INTERCEPTOR & CAS-DROP SYSTEM ──────────────────
-    // Override createObjectURL to capture user photo uploads
-    window.blobToBase64Map = window.blobToBase64Map || {};
-    
-    // Global sequential ID memory storage
-    window.personIdMap = window.personIdMap || {};
-    window.personIdCounter = window.personIdCounter || 0;
+      <!-- Admin Reports -->
+      <section id="section-admin-reports" class="content-section">
+        <div class="section-header">
+          <div>
+            <h1>ಮಾಹಿತಿ ವಿಶ್ಲೇಷಣೆ ವರದಿ / Analytics & Reports</h1>
+            <p class="subtitle">ನೋಂದಾಯಿತ ದತ್ತಾಂಶದ ವಿವರವಾದ ವರದಿ / System analytics and data exports</p>
+          </div>
+        </div>
+        <div class="reports-grid">
+          <div class="report-card">
+            <div class="report-icon">📊</div>
+            <h3>ಒಟ್ಟು ಕುಟುಂಬಗಳು / Total Households</h3>
+            <p>ನೋಂದಾಯಿಸಲ್ಪಟ್ಟ ಒಟ್ಟು ಕುಟುಂಬಗಳ ಸಂಖ್ಯೆ</p>
+            <div class="report-value" id="rpt-households">0</div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon">👨‍👩‍👧‍👦</div>
+            <h3>ಒಟ್ಟು ಜನಸಂಖ್ಯೆ / Population</h3>
+            <p>ನೋಂದಾಯಿಸಲ್ಪಟ್ಟ ಒಟ್ಟು ವ್ಯಕ್ತಿಗಳ ಸಂಖ್ಯೆ</p>
+            <div class="report-value" id="rpt-population">0</div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon">👤</div>
+            <h3>ಸರಾಸರಿ ಕುಟುಂಬ ಗಾತ್ರ / Avg Family Size</h3>
+            <p>ಪ್ರತಿ ಕುಟುಂಬದಲ್ಲಿರುವ ಸದಸ್ಯರ ಸರಾಸರಿ ಸಂಖ್ಯೆ</p>
+            <div class="report-value" id="rpt-avg-size">0</div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon">🌍</div>
+            <h3>ನೋಂದಾಯಿತ ರಾಜ್ಯಗಳು / States Covered</h3>
+            <p>ದತ್ತಾಂಶವಿರುವ ಒಟ್ಟು ರಾಜ್ಯಗಳ ವಿವರ</p>
+            <div class="report-value" id="rpt-states">0</div>
+          </div>
+        </div>
+        <div class="export-section">
+          <h3>ವರದಿ ಡೌನ್‌ಲೋಡ್ / Export Registered Database</h3>
+          <div class="export-btns">
+            <button class="btn-export" onclick="exportCSV()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              CSV ಫೈಲ್ ಡೌನ್‌ಲೋಡ್ / Export CSV
+            </button>
+            <button class="btn-export" onclick="exportJSON()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              JSON ಫೈಲ್ ಡೌನ್‌ಲೋಡ್ / Export JSON
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
 
-    window.blobToBase64Promises = window.blobToBase64Promises || {};
-    const originalCreateObjectURL = URL.createObjectURL;
-    URL.createObjectURL = function (obj) {
-      const url = originalCreateObjectURL(obj);
-      if (obj instanceof Blob && obj.type && obj.type.startsWith('image/')) {
-        window.latestPhotoUrl = url;
-        console.log("Captured profile photo url:", url);
-        if (window.onPhotoCaptured) {
-          window.onPhotoCaptured(url);
-        }
-        
-        // Convert to Base64 and store in the map via a Promise
-        window.blobToBase64Promises[url] = new Promise(function(resolve) {
-          var reader = new FileReader();
-          reader.onload = function(evt) {
-            window.blobToBase64Map[url] = evt.target.result;
-            console.log("Mapped blob URL to Base64 data URI");
-            if (window.activeFormScreenState) {
-              try {
-                var headData = window.serializePersonData(window.activeFormScreenState.e);
-                window.updatePreviewCard(headData);
-              } catch(ex) {}
-            }
-            resolve(evt.target.result);
-          };
-          reader.onerror = function() {
-            resolve(url);
-          };
-          reader.readAsDataURL(obj);
-        });
-      }
-      return url;
-    };
+<!-- ============ HOUSEHOLD DETAIL MODAL ============ -->
+<div id="household-modal" class="modal-overlay hidden">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h2 id="modal-title">ಕುಟುಂಬದ ವಿವರ / Household Details</h2>
+      <button class="modal-close" onclick="closeHouseholdModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="modal-content" class="modal-body"></div>
+  </div>
+</div>
 
-    // Global listener for file inputs to capture image upload as Base64 data URI
-    document.addEventListener('change', function(e) {
-      var target = e.target;
-      if (target && target.tagName === 'INPUT' && target.type === 'file') {
-        var file = target.files[0];
-        if (file && file.type.startsWith('image/')) {
-          var reader = new FileReader();
-          reader.onload = function(evt) {
-            window.latestPhotoUrl = evt.target.result;
-            console.log("Captured base64 profile photo:", window.latestPhotoUrl);
-            if (window.activeFormScreenState) {
-              try {
-                var headData = window.serializePersonData(window.activeFormScreenState.e);
-                window.updatePreviewCard(headData);
-              } catch(ex) {}
-            }
-          };
-          reader.readAsDataURL(file);
-        }
-      }
-    }, true);
+<!-- ============ TOAST NOTIFICATION ============ -->
+<div id="toast" class="toast hidden">
+  <div class="toast-icon"></div>
+  <div class="toast-message"></div>
+</div>
 
-    // Global country -> states list provider
-    window.getStatesForCountry = function(country) {
-      var indiaStates = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"];
-      var usaStates = ["Alabama","Alaska","Arizona","California","Florida","New York","Texas"];
-      var ukStates = ["England","Scotland","Wales"];
-      var australiaStates = ["New South Wales","Queensland","Victoria"];
-      var canadaStates = ["Ontario"];
-      var chinaStates = ["Guangdong","Beijing","Shanghai"];
-      var brazilStates = ["Sao Paulo"];
-      var argentinaStates = ["Buenos Aires"];
-      var japanStates = ["Tokyo"];
-      
-      var c = String(unwrapString(country) || "").trim().toLowerCase();
-      if (c === "india") return indiaStates;
-      if (c === "usa" || c === "united states" || c === "united states of america") return usaStates;
-      if (c === "uk" || c === "united kingdom" || c === "england") return ukStates;
-      if (c === "australia") return australiaStates;
-      if (c === "canada") return canadaStates;
-      if (c === "china") return chinaStates;
-      if (c === "brazil") return brazilStates;
-      if (c === "argentina") return argentinaStates;
-      if (c === "japan") return japanStates;
-      return [];
-    };
-
-
-    // The floating HTML preview card has been removed to prevent overlapping form fields.
-    window.updatePreviewCard = function(data) {};
-
-
-    // ── AUTO-SAVE SURVEY FORM SYSTEM ──────────────────────
-    window.needsRestoreForm = localStorage.getItem('census_autosave_form') !== null;
-    window.lastSavedJSON = '';
-    window.activeFormScreenState = null;
-
-    window.serializePersonData = function(p) {
-      if (!p) return null;
-      var dobStr = null;
-      if (p.d) {
-        try {
-          dobStr = p.d.Eu(); // Eu() is toIso8601String() in Dart
-        } catch(e) {
-          console.error("Error serializing Date:", e);
-        }
-      }
-      var photoVal = unwrapString(p.a) || null;
-      if (photoVal && window.blobToBase64Map && window.blobToBase64Map[photoVal]) {
-        photoVal = window.blobToBase64Map[photoVal];
-      }
-      return {
-        photo: photoVal,
-        name: unwrapString(p.b) || "",
-        relationship: unwrapString(p.c) || "",
-        dob: dobStr,
-        age: unwrapString(p.e) || "",
-        aadhar: unwrapString(p.f) || "",
-        mobile: unwrapString(p.r) || "",
-        maritalStatus: unwrapString(p.w) || "",
-        education: unwrapString(p.x) || "",
-        empType: unwrapString(p.y) || "",
-        occupation: unwrapString(p.z) || "",
-        traditionalOccupation: unwrapString(p.Q) || "",
-        country: unwrapString(p.as) || "India",
-        state: unwrapString(p.at) || null,
-        district: unwrapString(p.ax) || null,
-        taluk: unwrapString(p.ay) || null,
-        nagara: unwrapString(p.ch) || null,
-        ward: unwrapString(p.CW) || null,
-        pincode: unwrapString(p.cx) || "",
-        isExpanded: p.cy || false
-      };
-    };
-
-    window.deserializePersonData = function(data, instance) {
-      if (!data || !instance) return;
-      instance.a = wrapString(data.photo) || null;
-      instance.b = wrapString(data.name) || "";
-      instance.c = wrapString(sanitizePlaceholder(data.relationship)) || "";
-      if (data.dob) {
-        var timestamp = Date.parse(data.dob);
-        if (!isNaN(timestamp)) {
-          if (typeof A !== 'undefined' && A.bZ && A.np) {
-            instance.d = new A.bZ(A.np(timestamp, 0, false), 0, false);
-          } else {
-            console.warn("A.bZ or A.np is not defined, cannot restore DOB DateTime object");
-          }
-        }
-      } else {
-        instance.d = null;
-      }
-      instance.e = wrapString(data.age) || "";
-      instance.f = wrapString(data.aadhar) || "";
-      instance.r = wrapString(data.mobile) || "";
-      instance.w = wrapString(sanitizePlaceholder(data.maritalStatus)) || "";
-      instance.x = wrapString(data.education) || "";
-      instance.y = wrapString(data.empType) || "";
-      instance.z = wrapString(data.occupation) || "";
-      instance.Q = wrapString(data.traditionalOccupation) || "";
-      instance.as = wrapString(sanitizePlaceholder(data.country)) || "India";
-      instance.at = wrapString(sanitizePlaceholder(data.state)) || null;
-      instance.ax = wrapString(sanitizePlaceholder(data.district)) || null;
-      instance.ay = wrapString(sanitizePlaceholder(data.taluk)) || null;
-      instance.ch = wrapString(sanitizePlaceholder(data.nagara)) || null;
-      instance.CW = wrapString(sanitizePlaceholder(data.ward)) || null;
-      instance.cx = wrapString(data.pincode) || "";
-      instance.cy = data.isExpanded || false;
-    };
-
-    window.onFormScreenBuild = function(state) {
-      window.activeFormScreenState = state;
-      if (window.needsRestoreForm) {
-        window.needsRestoreForm = false;
-        try {
-          var saved = JSON.parse(localStorage.getItem('census_autosave_form'));
-          if (saved) {
-            // Check for corrupted draft data from broken versions
-            var isCorrupted = false;
-            if (saved.head) {
-              var h = saved.head;
-              if (typeof h.name === 'object' || typeof h.country === 'object' || 
-                  (typeof h.name === 'string' && h.name.indexOf('[object Object]') !== -1) ||
-                  (typeof h.country === 'string' && h.country.indexOf('[object Object]') !== -1) ||
-                  (typeof h.state === 'string' && h.state.indexOf('[object Object]') !== -1)) {
-                isCorrupted = true;
-              }
-            }
-            if (isCorrupted) {
-              console.warn("Auto-Save: Corrupted draft detected, clearing local autosave storage.");
-              localStorage.removeItem('census_autosave_form');
-              return;
-            }
-            var N = saved.members ? saved.members.length : 0;
-            // If the member count doesn't match, trigger the setState change
-            if (state.f.length !== N) {
-              console.log("Auto-Save: Restoring member count to", N);
-              if (typeof A !== 'undefined' && A.auU) {
-                state.X(new A.auU(state, N));
-              }
-              return;
-            }
-
-            // Restore headOfHousehold data
-            if (saved.head && state.e) {
-              window.deserializePersonData(saved.head, state.e);
-            }
-            // Restore familyMembers data
-            if (saved.members && state.f) {
-              for (var i = 0; i < state.f.length; i++) {
-                if (saved.members[i] && state.f[i]) {
-                  window.deserializePersonData(saved.members[i], state.f[i]);
-                }
-              }
-            }
-            console.log("Auto-Save: Form data restored successfully!");
-            // Force state rebuild/re-render so restored inputs appear on screen
-            if (typeof state.pa === 'function') {
-              state.pa();
-            }
-          }
-        } catch (e) {
-          console.error("Auto-Save: Restore failed:", e);
-        }
-      }
-    };
-
-    // Auto-Save and UI Update Loop
-    setInterval(function() {
-      if (window.activeFormScreenState) {
-        try {
-          var state = window.activeFormScreenState;
-          if (state.c === null) {
-            window.activeFormScreenState = null;
-            window.updatePreviewCard(null);
-            return;
-          }
-          var headData = window.serializePersonData(state.e);
-          var membersData = [];
-          if (state.f) {
-            for (var i = 0; i < state.f.length; i++) {
-              membersData.push(window.serializePersonData(state.f[i]));
-            }
-          }
-          
-          // Update the preview card UI
-          window.updatePreviewCard(headData);
-
-          var payload = {
-            head: headData,
-            members: membersData
-          };
-          var json = JSON.stringify(payload);
-          if (json !== window.lastSavedJSON) {
-            localStorage.setItem('census_autosave_form', json);
-            window.lastSavedJSON = json;
-            console.log("Auto-Save: Form data saved!");
-          }
-        } catch (e) {
-          // Ignore
-        }
-      } else {
-        window.updatePreviewCard(null);
-      }
-    }, 1000);
-
-    // ── DATE AUTO-FORMATTER (DD/MM/YYYY) ─────────────────────
-    // Identifies the DOB field when Flutter sets a full date value (from the
-    // date-picker dialog), then auto-inserts "/" as the user types digits.
-    (function () {
-      var dateInputs = new WeakSet(); // inputs confirmed as date fields
-      var isFormatting = false;       // re-entrancy guard
-
-      // ① Watch for inputs that receive a "DD/MM/YYYY" pattern value
-      //    (Flutter's date-picker fires this when a date is chosen)
-      var dateValueObserver = new MutationObserver(function () {
-        document.querySelectorAll('input').forEach(function (inp) {
-          if (/^\d{2}\/\d{2}\/\d{4}$/.test(inp.value)) {
-            dateInputs.add(inp);
-          }
-        });
-      });
-      dateValueObserver.observe(document.documentElement, {
-        subtree: true, childList: true, characterData: true, attributes: true
-      });
-
-      // Also scan on every polling tick so we catch programmatic value sets
-      setInterval(function () {
-        document.querySelectorAll('input').forEach(function (inp) {
-          if (/^\d{2}\/\d{2}\/\d{4}$/.test(inp.value)) {
-            dateInputs.add(inp);
-          }
-        });
-      }, 800);
-
-      // ② Intercept keydown in capture phase (runs before Flutter's listeners)
-      //    Auto-insert "/" after the 2nd digit (day) and 4th digit (month)
-      document.addEventListener('keydown', function (e) {
-        if (isFormatting) return;
-        var el = e.target;
-        if (!el || el.tagName !== 'INPUT') return;
-        if (!dateInputs.has(el)) return;  // only affect confirmed date fields
-
-        // Allow control keys, arrows, backspace, delete, tab
-        if (e.key.length > 1) return;
-        // Only process digit key-presses
-        if (!/^[0-9]$/.test(e.key)) return;
-
-        var val = el.value;
-        var digits = val.replace(/\//g, '');
-
-        // After typing 2nd digit (day) → insert '/'
-        // After typing 4th digit (month) → insert '/'
-        if (digits.length === 2 && val.length === 2) {
-          // About to add 3rd digit — first insert slash
-          isFormatting = true;
-          el.value = val + '/';
-          try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
-          isFormatting = false;
-        } else if (digits.length === 4 && val.length === 5 && val.charAt(2) === '/') {
-          // About to add 5th digit (year start) — insert slash after month
-          isFormatting = true;
-          el.value = val + '/';
-          try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
-          isFormatting = false;
-        }
-      }, true); // capture = true
-
-      // ③ Prevent typing beyond 10 chars (DD/MM/YYYY)
-      document.addEventListener('input', function (e) {
-        if (isFormatting) return;
-        var el = e.target;
-        if (!el || el.tagName !== 'INPUT') return;
-        if (!dateInputs.has(el)) return;
-        // Only digits and slashes allowed; trim to 10
-        if (!/^[\d/]*$/.test(el.value) || el.value.length > 10) {
-          isFormatting = true;
-          el.value = el.value.replace(/[^\d/]/g, '').slice(0, 10);
-          try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
-          isFormatting = false;
-        }
-      }, true);
-
-      // MethodChannel Interception for web downloads (gal plugin)
-      (function() {
-        var checkTimer = setInterval(function() {
-          if (window.A && window.A.lR && window.A.lR.prototype) {
-            clearInterval(checkTimer);
-            try {
-              patchMethodChannel(window.A);
-              console.log("Successfully patched MethodChannel via polling!");
-            } catch(e) {
-              console.error("Error patching MethodChannel:", e);
-            }
-          }
-        }, 50);
-        setTimeout(function() { clearInterval(checkTimer); }, 10000);
-      })();
-
-      function patchMethodChannel(A) {
-        if (!A.lR || !A.lR.prototype || A.lR.prototype._isPatched) return;
-        A.lR.prototype._isPatched = true;
-        
-        var originalAjR = A.lR.prototype.ajR;
-        A.lR.prototype.ajR = function(method, args, c, d, e) {
-          var channel = this.a;
-          console.log("MethodChannel call intercepted:", channel, method, args);
-          
-          if (channel === "gal") {
-            if (method === "hasAccess" || method === "requestAccess") {
-              console.log("Mocking gal permission checks: granted");
-              return A.x(true, d.h("0?"));
-            }
-            if (method === "putImage" || method === "putVideo" || method === "putImageBytes") {
-              var bytesVal = null;
-              var pathVal = null;
-              try {
-                if (args && typeof args.i === 'function') {
-                  bytesVal = args.i(0, "bytes");
-                  pathVal = args.i(0, "path");
-                } else if (args) {
-                  bytesVal = args.bytes;
-                  pathVal = args.path;
-                }
-              } catch(ex) {
-                console.error("Error extracting gal arguments:", ex);
-              }
-              
-              if (!bytesVal && !pathVal) {
-                bytesVal = args;
-              }
-              
-              console.log("Mocking gal file save/download:", { path: pathVal, hasBytes: !!bytesVal });
-              
-              if (bytesVal) {
-                var jsBytes = getJSBytes(bytesVal);
-                if (jsBytes) {
-                  var blob = new Blob([jsBytes], {type: "image/png"});
-                  var url = URL.createObjectURL(blob);
-                  triggerFileDownload(url, "census_id_card.png");
-                  setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
-                }
-              } else if (pathVal) {
-                triggerFileDownload(pathVal, "census_id_card.png");
-              }
-              
-              return A.x(null, d.h("0?"));
-            }
-          }
-          return originalAjR.apply(this, arguments);
-        };
-      }
-
-      function getJSBytes(dartBytes) {
-        if (!dartBytes) return null;
-        if (dartBytes instanceof Uint8Array) return dartBytes;
-        if (dartBytes.buffer instanceof ArrayBuffer) return new Uint8Array(dartBytes.buffer);
-        try {
-          var len = dartBytes.length || (typeof dartBytes.glength === 'function' ? dartBytes.glength() : 0);
-          if (len > 0) {
-            var arr = new Uint8Array(len);
-            for (var i = 0; i < len; i++) {
-              arr[i] = typeof dartBytes.u === 'function' ? dartBytes.u(i) : dartBytes[i];
-            }
-            return arr;
-          }
-        } catch(e) {}
-        return dartBytes;
-      }
-
-      function triggerFileDownload(url, filename) {
-        var link = document.createElement("a");
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    })();
-  </script>
-
-  <script src="flutter_bootstrap.js?v=117" async></script>
+<script src="app.js?v=5" defer></script>
 </body>
 </html>
