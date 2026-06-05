@@ -52,6 +52,25 @@
       background: linear-gradient(135deg, #6A1B9A, #00E5FF);
     }
 
+    /* Ambient vignette overlay for login/splash screens to enhance the aesthetic */
+    #login-vignette {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 999998; /* Under watermark but above Flutter canvas */
+      background: radial-gradient(circle, transparent 40%, rgba(26, 9, 51, 0.5) 80%, rgba(0, 0, 0, 0.8) 100%);
+      box-shadow: inset 0 0 120px rgba(0, 188, 212, 0.15); /* Soft teal aura */
+      display: block;
+      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+    }
+    body.logged-in #login-vignette {
+      opacity: 0;
+      visibility: hidden;
+    }
+
     /* Fixed watermark overlay - enlarged to cover whole window and darker opacity */
     #watermark-overlay {
       position: fixed;
@@ -76,9 +95,14 @@
       filter: invert(1);
     }
 
-    /* Smooth transition for theme filter inversion */
+    /* Smooth transition for theme filter inversion and entry scaling */
     flt-glass-pane {
       transition: filter 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: appFadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes appFadeIn {
+      0% { opacity: 0; transform: scale(0.98); }
+      100% { opacity: 1; transform: scale(1); }
     }
 
     /* Dark mode color inversion for the Flutter app when logged in */
@@ -175,6 +199,9 @@
     <div class="spinner"></div>
     <div class="loader-text">Taralabalu Shishya Mandali</div>
   </div>
+
+  <!-- Ambient Login Vignette -->
+  <div id="login-vignette"></div>
 
   <!-- Watermark Element -->
   <div id="watermark-overlay"></div>
