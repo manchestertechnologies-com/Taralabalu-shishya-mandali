@@ -113,6 +113,24 @@ a { text-decoration: none; color: inherit; }
   display: flex; flex-direction: column; align-items: center; gap: 36px;
   z-index: 2; animation: splashIn 0.8s ease;
 }
+.splash-card {
+  width: 140px;
+  height: 180px;
+  border-radius: 50% / 60% 60% 40% 40%;
+  overflow: hidden;
+  border: 3px solid var(--accent);
+  box-shadow: 0 10px 30px rgba(255,111,0,0.25), 0 0 40px var(--primary-glow);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: -10px;
+}
+.splash-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 @keyframes splashIn {
   from { opacity: 0; transform: scale(0.9) translateY(20px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -919,7 +937,7 @@ a { text-decoration: none; color: inherit; }
 .app-watermark {
   position: fixed;
   inset: 0;
-  background-image: url('assets/temple.png');
+  background-image: url('assets/temple.jpg');
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -1205,7 +1223,7 @@ body.dark-theme .app-watermark {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url('assets/temple.png');
+  background-image: url('assets/temple.jpg');
   background-position: center;
   background-repeat: no-repeat;
   background-size: 70%;
