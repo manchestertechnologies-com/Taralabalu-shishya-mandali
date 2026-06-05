@@ -63607,11 +63607,14 @@ Dr(a){return new A.dp(this,t.tF)},
 xh(a,b){return A.agd(this.k8(a,b),a.a.a,new A.a95(this),1)},
 xi(a,b){return A.agd(this.k8(a,b),a.a.a,new A.a96(this),1)},
 k8(a,b){return this.akf(a,b)},
-akf(a,b){var s=0,r=A.z(t.hP),q=this
+akf(a,b){var s=0,r=A.z(t.hP),q
 var $async$k8=A.v(function(c,d){if(c===1)return A.w(d,r)
-for(;;)switch(s){case 0:s=2
-return A.o(q.a.mn(0),$async$k8)
-case 2:return A.x(null,r)}})
+for(;;)switch(s){case 0:s=7
+return A.o(window.fetch(a.a.a).then(function(res){return res.arrayBuffer()}).then(function(buf){return new Uint8Array(buf)}),$async$k8)
+case 7:q=b.$1(d)
+s=1
+break
+case 1:return A.x(q,r)}})
 return A.y($async$k8,r)},
 j(a,b){var s
 if(b==null)return!1
@@ -98339,7 +98342,11 @@ var $async$EJ=A.v(function(d,e){if(d===1)return A.w(e,r)
 for(;;)switch(s){case 0:o=A
 n=t.f
 s=3
+if(b&&b.a&&typeof b.a==="string"&&b.a.indexOf("blob:")===0){s=8
+return A.o(window.fetch(b.a).then(function(res){return res.arrayBuffer()}).then(function(buf){return new Uint8Array(buf)}),$async$EJ)}s=3
 return A.o(p.e.N8(p.a+"/object/"+(p.c+"/"+a),b,c,new A.a90(p.b),p.d,null),$async$EJ)
+case 8:s=3
+return A.o(p.e.N8(p.a+"/object/"+(p.c+"/"+a),e,c,new A.a90(p.b),p.d,null),$async$EJ)
 case 3:q=o.bk(n.a(e).i(0,"Key"))
 s=1
 break
@@ -99630,7 +99637,7 @@ case 10:l=b
 if(m.c==null){n=[1]
 s=8
 break}i=t.J
-if(J.dW(l,"success")){m.a.ayA(g,j)
+if(J.dW(l,"success")){localStorage.removeItem("census_autosave_form");m.a.ayA(g,j)
 m.c.ad(i).f.im(B.VD)}else m.c.ad(i).f.im(A.wy(null,null,null,B.cB,null,B.x,null,A.b9("Submission Failed: "+A.j(J.dW(l,"message")),null,null,null,null,null,null,null),null,B.bS,null,null,null,null,null,null,null,null,null,null))
 n.push(9)
 s=8
@@ -99656,7 +99663,7 @@ case 5:m.c.ad(t.J).f.im(B.VB)
 case 4:case 1:return A.x(q,r)
 case 2:return A.w(o.at(-1),r)}})
 return A.y($async$B2,r)},
-I(a){var s,r,q=this,p=null,o=A.b9("Head of Household / \u0c95\u0cc1\u0c9f\u0cc1\u0c82\u0cac\u0ca6 \u0cae\u0cc1\u0c96\u0ccd\u0caf\u0cb8\u0ccd\u0ca5".toUpperCase(),p,p,p,B.ZZ,p,p,p),n=q.e,m=A.bN(12),l=A.a4v(B.oK,1),k=t.p,j=A.ck(A.cj(A.b([A.b9("Family Members / \u0c95\u0cc1\u0c9f\u0cc1\u0c82\u0cac\u0ca6 \u0cb8\u0ca6\u0cb8\u0ccd\u0caf\u0cb0\u0cc1",p,p,p,A.dy(p,p,B.p3,p,p,p,p,p,p,p,p,14,p,p,B.as,p,p,!0,p,p,p,p,p,p,p,p),p,p,p),B.a0w],k),B.aL,B.v,B.y),1),i=A.bN(8),h=A.a4v(B.bD,1),g=q.f,f=g.length,e=q.r?p:q.galm(),d=t.kZ,c=J.kn(11,d)
+I(a){if(window.onFormScreenBuild)window.onFormScreenBuild(this);var s,r,q=this,p=null,o=A.b9("Head of Household / \u0c95\u0cc1\u0c9f\u0cc1\u0c82\u0cac\u0ca6 \u0cae\u0cc1\u0c96\u0ccd\u0caf\u0cb8\u0ccd\u0ca5".toUpperCase(),p,p,p,B.ZZ,p,p,p),n=q.e,m=A.bN(12),l=A.a4v(B.oK,1),k=t.p,j=A.ck(A.cj(A.b([A.b9("Family Members / \u0c95\u0cc1\u0c9f\u0cc1\u0c82\u0cac\u0ca6 \u0cb8\u0ca6\u0cb8\u0ccd\u0caf\u0cb0\u0cc1",p,p,p,A.dy(p,p,B.p3,p,p,p,p,p,p,p,p,14,p,p,B.as,p,p,!0,p,p,p,p,p,p,p,p),p,p,p),B.a0w],k),B.aL,B.v,B.y),1),i=A.bN(8),h=A.a4v(B.bD,1),g=q.f,f=g.length,e=q.r?p:q.galm(),d=t.kZ,c=J.kn(11,d)
 for(s=0;s<11;++s)c[s]=new A.eH(s,A.b9(""+s,p,p,p,B.Yl,p,p,p),B.cM,p,d)
 o=A.b([new A.b4(B.J5,o,p),new A.vR(n,!0,0,new A.auY(),new A.r7(n)),B.Vo,A.bX(p,A.cQ(A.b([j,B.Vi,A.bX(p,new A.uR(new A.nu(c,f,p,p,e,p,p,8,p,B.Kt,p,p,24,!1,!1,48,p,p,!1,p,p,p,p,B.cM,p,!0,p,p,p,!1,p,t.CB),p),B.m,p,p,new A.bI(B.oC,p,h,i,p,p,B.R),p,p,p,B.pz,p,p,p)],k),B.w,B.dJ,B.y,0),B.m,p,p,new A.bI(B.j,p,l,m,p,p,B.R),p,p,p,B.IZ,p,p,p),B.Vm],k)
 if(g.length===0)o.push(new A.b4(B.J2,A.em(A.cj(A.b([A.fo(B.JP,B.ed,p,40),B.mV,B.a0n],k),B.w,B.v,B.y),p,p),p))

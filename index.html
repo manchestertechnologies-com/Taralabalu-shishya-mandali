@@ -85,15 +85,25 @@
       visibility: hidden;
     }
 
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
     /* Fixed watermark overlay - centered and stretched to cover entire window on mobile */
     #watermark-overlay {
       position: fixed;
       left: 0;
       top: 0;
-      width: 100vw;
-      height: 100vh;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
       background-image: url('assets/assets/app_icon.jpg');
-      background-position: center;
+      background-position: center center !important;
       background-repeat: no-repeat;
       background-size: cover; /* Cover entire viewport height and width properly */
       opacity: 0.15; /* Less opacity as requested */
@@ -105,8 +115,6 @@
 
     /* Unified permanent "WOW" theme color shift for the entire Flutter view layer */
     flt-glass-pane {
-      /* Rotates Teal to bright Cyan, Orange to rich Gold, and Purple to Royal Violet */
-      filter: hue-rotate(40deg) saturate(1.15) contrast(1.05);
       animation: appFadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     @keyframes appFadeIn {
@@ -430,6 +438,147 @@
         console.error('Error checking login status:', e);
       }
     }, 500);
+
+    // ── AUTO-SAVE SURVEY FORM SYSTEM ──────────────────────
+    window.needsRestoreForm = localStorage.getItem('census_autosave_form') !== null;
+    window.lastSavedJSON = '';
+    window.activeFormScreenState = null;
+
+    window.serializePersonData = function(p) {
+      if (!p) return null;
+      var dobStr = null;
+      if (p.d) {
+        try {
+          dobStr = p.d.Eu(); // Eu() is toIso8601String() in Dart
+        } catch(e) {
+          console.error("Error serializing Date:", e);
+        }
+      }
+      return {
+        name: p.b || "",
+        relationship: p.c || "",
+        dob: dobStr,
+        age: p.r || "",
+        aadhar: p.f || "",
+        mobile: p.e || "",
+        maritalStatus: p.w || "",
+        education: p.x || "",
+        empType: p.y || "",
+        occupation: p.z || "",
+        traditionalOccupation: p.Q || "",
+        country: p.as || "India",
+        state: p.at || null,
+        district: p.ax || null,
+        taluk: p.ay || null,
+        nagara: p.ch || null,
+        ward: p.CW || null,
+        pincode: p.cx || "",
+        isExpanded: p.cy || false
+      };
+    };
+
+    window.deserializePersonData = function(data, instance) {
+      if (!data || !instance) return;
+      instance.b = data.name || "";
+      instance.c = data.relationship || "";
+      if (data.dob) {
+        var timestamp = Date.parse(data.dob);
+        if (!isNaN(timestamp)) {
+          if (typeof A !== 'undefined' && A.bZ && A.np) {
+            instance.d = new A.bZ(A.np(timestamp, 0, false), 0, false);
+          } else {
+            console.warn("A.bZ or A.np is not defined, cannot restore DOB DateTime object");
+          }
+        }
+      } else {
+        instance.d = null;
+      }
+      instance.r = data.age || "";
+      instance.f = data.aadhar || "";
+      instance.e = data.mobile || "";
+      instance.w = data.maritalStatus || "";
+      instance.x = data.education || "";
+      instance.y = data.empType || "";
+      instance.z = data.occupation || "";
+      instance.Q = data.traditionalOccupation || "";
+      instance.as = data.country || "India";
+      instance.at = data.state || null;
+      instance.ax = data.district || null;
+      instance.ay = data.taluk || null;
+      instance.ch = data.nagara || null;
+      instance.CW = data.ward || null;
+      instance.cx = data.pincode || "";
+      instance.cy = data.isExpanded || false;
+    };
+
+    window.onFormScreenBuild = function(state) {
+      window.activeFormScreenState = state;
+      if (window.needsRestoreForm) {
+        window.needsRestoreForm = false;
+        try {
+          var saved = JSON.parse(localStorage.getItem('census_autosave_form'));
+          if (saved) {
+            var N = saved.members ? saved.members.length : 0;
+            // If the member count doesn't match, trigger the setState change
+            if (state.f.length !== N) {
+              console.log("Auto-Save: Restoring member count to", N);
+              if (typeof A !== 'undefined' && A.auU) {
+                state.X(new A.auU(state, N));
+              }
+              return;
+            }
+
+            // Restore headOfHousehold data
+            if (saved.head && state.e) {
+              window.deserializePersonData(saved.head, state.e);
+            }
+            // Restore familyMembers data
+            if (saved.members && state.f) {
+              for (var i = 0; i < state.f.length; i++) {
+                if (saved.members[i] && state.f[i]) {
+                  window.deserializePersonData(saved.members[i], state.f[i]);
+                }
+              }
+            }
+            console.log("Auto-Save: Form data restored successfully!");
+          }
+        } catch (e) {
+          console.error("Auto-Save: Restore failed:", e);
+        }
+      }
+    };
+
+    // Auto-Save Loop
+    setInterval(function() {
+      if (window.activeFormScreenState) {
+        try {
+          var state = window.activeFormScreenState;
+          if (state.c === null) {
+            window.activeFormScreenState = null;
+            return;
+          }
+          var headData = window.serializePersonData(state.e);
+          var membersData = [];
+          if (state.f) {
+            for (var i = 0; i < state.f.length; i++) {
+              membersData.push(window.serializePersonData(state.f[i]));
+            }
+          }
+          var payload = {
+            head: headData,
+            members: membersData
+          };
+          var json = JSON.stringify(payload);
+          if (json !== window.lastSavedJSON) {
+            localStorage.setItem('census_autosave_form', json);
+            window.lastSavedJSON = json;
+            console.log("Auto-Save: Form data saved!");
+          }
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }, 1000);
   </script>
 
   <script src="flutter_bootstrap.js?v=105" async></script>
