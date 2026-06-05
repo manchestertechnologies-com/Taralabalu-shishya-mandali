@@ -20,9 +20,12 @@
     // Programmatically clear service worker and cache storage to prevent caching issues
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (var i = 0; i < registrations.length; i++) {
-          registrations[i].unregister();
-          console.log('Service worker unregistered');
+        if (registrations.length > 0) {
+          for (var i = 0; i < registrations.length; i++) {
+            registrations[i].unregister();
+          }
+          console.log('Active service workers cleared, reloading...');
+          window.location.reload();
         }
       });
     }
@@ -946,6 +949,6 @@
     })();
   </script>
 
-  <script src="flutter_bootstrap.js?v=111" async></script>
+  <script src="flutter_bootstrap.js?v=112" async></script>
 </body>
 </html>
