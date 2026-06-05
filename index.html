@@ -42,14 +42,14 @@
       background: rgba(0, 0, 0, 0.05);
     }
     ::-webkit-scrollbar-thumb {
-      background: linear-gradient(135deg, #4A148C, #00BCD4);
+      background: linear-gradient(135deg, #00b4d8, #ff9f00);
       border-radius: 5px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: linear-gradient(135deg, #6A1B9A, #00E5FF);
+      background: linear-gradient(135deg, #00e5ff, #ffb700);
     }
 
-    /* Ambient vignette overlay for login/splash screens to enhance the aesthetic */
+    /* Ambient vignette overlay for login/splash screens with premium colors */
     #login-vignette {
       position: fixed;
       left: 0;
@@ -58,12 +58,29 @@
       height: 100vh;
       pointer-events: none;
       z-index: 999998; /* Under watermark but above Flutter canvas */
-      background: radial-gradient(circle, transparent 40%, rgba(26, 9, 51, 0.5) 80%, rgba(0, 0, 0, 0.8) 100%);
-      box-shadow: inset 0 0 120px rgba(0, 188, 212, 0.15); /* Soft teal aura */
+      background: radial-gradient(circle, transparent 30%, rgba(42, 8, 92, 0.4) 75%, rgba(0, 0, 0, 0.85) 100%);
+      box-shadow: inset 0 0 150px rgba(0, 180, 216, 0.2); /* Glowing cyan aura */
       display: block;
       transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
     }
     body.logged-in #login-vignette {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    /* Interactive particle canvas backdrop on login */
+    #login-particles {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 999997; /* Behind vignette and watermark, above canvas */
+      display: block;
+      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+    }
+    body.logged-in #login-particles {
       opacity: 0;
       visibility: hidden;
     }
@@ -86,13 +103,48 @@
       transition: opacity 0.5s ease;
     }
 
-    /* Smooth entry scale and fade animation for the Flutter viewport */
+    /* Unified permanent "WOW" theme color shift for the entire Flutter view layer */
     flt-glass-pane {
+      /* Rotates Teal to bright Cyan, Orange to rich Gold, and Purple to Royal Violet */
+      filter: hue-rotate(40deg) saturate(1.15) contrast(1.05);
       animation: appFadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     @keyframes appFadeIn {
       0% { opacity: 0; transform: scale(0.98); }
       100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Custom cursor dot & outline styling (desktop only) */
+    #custom-cursor-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #00b4d8;
+      border-radius: 50%;
+      position: fixed;
+      pointer-events: none;
+      z-index: 10000000;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s, height 0.2s;
+      display: block;
+    }
+    #custom-cursor-outline {
+      width: 32px;
+      height: 32px;
+      border: 2px solid #ff9f00;
+      border-radius: 50%;
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999999;
+      transform: translate(-50%, -50%);
+      transition: border-color 0.2s, width 0.2s, height 0.2s;
+      display: block;
+    }
+    
+    /* Disable custom cursor on mobile touchscreens */
+    @media (hover: none) and (pointer: coarse) {
+      #custom-cursor-dot, #custom-cursor-outline {
+        display: none !important;
+      }
     }
 
     /* Mutt-themed html loading screen to prevent initial white screen flash */
@@ -145,14 +197,200 @@
     <div class="loader-text">Taralabalu Shishya Mandali</div>
   </div>
 
-  <!-- Ambient Login Vignette -->
+  <!-- Ambient Login Vignette and Particles -->
   <div id="login-vignette"></div>
+  <canvas id="login-particles"></canvas>
 
   <!-- Watermark Element -->
   <div id="watermark-overlay"></div>
 
+  <!-- Custom Cursor Elements -->
+  <div id="custom-cursor-dot"></div>
+  <div id="custom-cursor-outline"></div>
+
   <!-- Theme and Watermark Script -->
   <script>
+    // ── CUSTOM INTERACTIVE CURSOR ────────────────────────
+    var cursorDot = document.getElementById('custom-cursor-dot');
+    var cursorOutline = document.getElementById('custom-cursor-outline');
+    
+    var mouseX = 0, mouseY = 0;
+    var outlineX = 0, outlineY = 0;
+    var isHovering = false;
+
+    window.addEventListener('mousemove', function(e) {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      if (cursorDot) {
+        cursorDot.style.left = mouseX + 'px';
+        cursorDot.style.top = mouseY + 'px';
+      }
+    });
+
+    // Smooth outline follow using lerp
+    function animateCursor() {
+      var dx = mouseX - outlineX;
+      var dy = mouseY - outlineY;
+      outlineX += dx * 0.15;
+      outlineY += dy * 0.15;
+
+      if (cursorOutline) {
+        cursorOutline.style.left = outlineX + 'px';
+        cursorOutline.style.top = outlineY + 'px';
+      }
+      requestAnimationFrame(animateCursor);
+    }
+    requestAnimationFrame(animateCursor);
+
+    // Expand cursor ring on click / hover
+    window.addEventListener('mousedown', function() {
+      if (cursorOutline) {
+        cursorOutline.style.width = '24px';
+        cursorOutline.style.height = '24px';
+      }
+    });
+    window.addEventListener('mouseup', function() {
+      if (cursorOutline) {
+        cursorOutline.style.width = isHovering ? '44px' : '32px';
+        cursorOutline.style.height = isHovering ? '44px' : '32px';
+      }
+    });
+
+    // Detect if hovering over clickable canvas objects/buttons
+    setInterval(function() {
+      try {
+        var activeEl = document.activeElement;
+        // Check if cursor is pointer (meaning canvas is hovering a button)
+        var canvas = document.querySelector('canvas');
+        if (canvas) {
+          var cursorType = window.getComputedStyle(canvas).cursor;
+          if (cursorType === 'pointer' && !isHovering) {
+            isHovering = true;
+            if (cursorOutline) {
+              cursorOutline.style.width = '44px';
+              cursorOutline.style.height = '44px';
+              cursorOutline.style.borderColor = '#00b4d8';
+            }
+            if (cursorDot) {
+              cursorDot.style.backgroundColor = '#ff9f00';
+            }
+          } else if (cursorType !== 'pointer' && isHovering) {
+            isHovering = false;
+            if (cursorOutline) {
+              cursorOutline.style.width = '32px';
+              cursorOutline.style.height = '32px';
+              cursorOutline.style.borderColor = '#ff9f00';
+            }
+            if (cursorDot) {
+              cursorDot.style.backgroundColor = '#00b4d8';
+            }
+          }
+        }
+      } catch (e) {}
+    }, 100);
+
+
+    // ── INTERACTIVE CANVAS PARTICLES ──────────────────────
+    var canvas = document.getElementById('login-particles');
+    var ctx = canvas.getContext('2d');
+    var particles = [];
+    var maxParticles = 40;
+    var animateParticles = true;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Mouse coordinates inside particle network
+    var pMouse = { x: null, y: null, radius: 150 };
+    window.addEventListener('mousemove', function(e) {
+      pMouse.x = e.clientX;
+      pMouse.y = e.clientY;
+    });
+    window.addEventListener('mouseout', function() {
+      pMouse.x = null;
+      pMouse.y = null;
+    });
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = (Math.random() - 0.5) * 0.8;
+        this.vy = (Math.random() - 0.5) * 0.8;
+        this.radius = Math.random() * 2.5 + 1;
+        this.color = Math.random() > 0.5 ? 'rgba(0, 180, 216, 0.45)' : 'rgba(255, 159, 0, 0.45)';
+      }
+      update() {
+        // Move
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Bounce on edges
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+
+        // Mouse attraction
+        if (pMouse.x !== null && pMouse.y !== null) {
+          let dx = pMouse.x - this.x;
+          let dy = pMouse.y - this.y;
+          let dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < pMouse.radius) {
+            let force = (pMouse.radius - dist) / pMouse.radius;
+            this.x += (dx / dist) * force * 1.5;
+            this.y += (dy / dist) * force * 1.5;
+          }
+        }
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+    }
+
+    // Init particles
+    for (let i = 0; i < maxParticles; i++) {
+      particles.push(new Particle());
+    }
+
+    function drawParticles() {
+      if (!animateParticles) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Update & Draw
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+
+      // Draw lines
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          let dx = particles[i].x - particles[j].x;
+          let dy = particles[i].y - particles[j].y;
+          let dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            let alpha = (120 - dist) / 120 * 0.15;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(drawParticles);
+    }
+    requestAnimationFrame(drawParticles);
+
+
+    // ── OBSERVERS & GENERAL STATE TOGGLER ─────────────────
     // Observer to fade out HTML loader when Flutter view renders
     var observer = new MutationObserver(function(mutations) {
       if (document.querySelector('flt-glass-pane') || document.querySelector('flutter-view')) {
@@ -169,7 +407,7 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Dynamic State Toggler
+    // Dynamic State Toggler (Watermark and Particles Control)
     setInterval(function() {
       try {
         var isLoggedIn = localStorage.getItem('flutter.is_logged_in') || localStorage.getItem('is_logged_in');
@@ -179,9 +417,14 @@
         if (isLoggedIn === 'true' || isLoggedIn === true || isLoggedIn === '1' || isLoggedIn === 1) {
           body.classList.add('logged-in');
           if (watermark) watermark.style.display = 'block';
+          animateParticles = false; // Stop particles loop when logged in to save performance
         } else {
           body.classList.remove('logged-in');
           if (watermark) watermark.style.display = 'none';
+          if (!animateParticles) {
+            animateParticles = true;
+            requestAnimationFrame(drawParticles);
+          }
         }
       } catch (e) {
         console.error('Error checking login status:', e);
@@ -189,6 +432,6 @@
     }, 500);
   </script>
 
-  <script src="flutter_bootstrap.js?v=104" async></script>
+  <script src="flutter_bootstrap.js?v=105" async></script>
 </body>
 </html>
