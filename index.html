@@ -468,8 +468,86 @@
         }
       }
     }, 1000);
+
+    // ── DATE AUTO-FORMATTER (DD/MM/YYYY) ─────────────────────
+    // Identifies the DOB field when Flutter sets a full date value (from the
+    // date-picker dialog), then auto-inserts "/" as the user types digits.
+    (function () {
+      var dateInputs = new WeakSet(); // inputs confirmed as date fields
+      var isFormatting = false;       // re-entrancy guard
+
+      // ① Watch for inputs that receive a "DD/MM/YYYY" pattern value
+      //    (Flutter's date-picker fires this when a date is chosen)
+      var dateValueObserver = new MutationObserver(function () {
+        document.querySelectorAll('input').forEach(function (inp) {
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(inp.value)) {
+            dateInputs.add(inp);
+          }
+        });
+      });
+      dateValueObserver.observe(document.documentElement, {
+        subtree: true, childList: true, characterData: true, attributes: true
+      });
+
+      // Also scan on every polling tick so we catch programmatic value sets
+      setInterval(function () {
+        document.querySelectorAll('input').forEach(function (inp) {
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(inp.value)) {
+            dateInputs.add(inp);
+          }
+        });
+      }, 800);
+
+      // ② Intercept keydown in capture phase (runs before Flutter's listeners)
+      //    Auto-insert "/" after the 2nd digit (day) and 4th digit (month)
+      document.addEventListener('keydown', function (e) {
+        if (isFormatting) return;
+        var el = e.target;
+        if (!el || el.tagName !== 'INPUT') return;
+        if (!dateInputs.has(el)) return;  // only affect confirmed date fields
+
+        // Allow control keys, arrows, backspace, delete, tab
+        if (e.key.length > 1) return;
+        // Only process digit key-presses
+        if (!/^[0-9]$/.test(e.key)) return;
+
+        var val = el.value;
+        var digits = val.replace(/\//g, '');
+
+        // After typing 2nd digit (day) → insert '/'
+        // After typing 4th digit (month) → insert '/'
+        if (digits.length === 2 && val.length === 2) {
+          // About to add 3rd digit — first insert slash
+          isFormatting = true;
+          el.value = val + '/';
+          try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
+          isFormatting = false;
+        } else if (digits.length === 4 && val.length === 5 && val.charAt(2) === '/') {
+          // About to add 5th digit (year start) — insert slash after month
+          isFormatting = true;
+          el.value = val + '/';
+          try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
+          isFormatting = false;
+        }
+      }, true); // capture = true
+
+      // ③ Prevent typing beyond 10 chars (DD/MM/YYYY)
+      document.addEventListener('input', function (e) {
+        if (isFormatting) return;
+        var el = e.target;
+        if (!el || el.tagName !== 'INPUT') return;
+        if (!dateInputs.has(el)) return;
+        // Only digits and slashes allowed; trim to 10
+        if (!/^[\d/]*$/.test(el.value) || el.value.length > 10) {
+          isFormatting = true;
+          el.value = el.value.replace(/[^\d/]/g, '').slice(0, 10);
+          try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
+          isFormatting = false;
+        }
+      }, true);
+    })();
   </script>
 
-  <script src="flutter_bootstrap.js?v=105" async></script>
+  <script src="flutter_bootstrap.js?v=106" async></script>
 </body>
 </html>
