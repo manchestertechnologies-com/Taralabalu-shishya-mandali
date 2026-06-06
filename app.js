@@ -954,12 +954,24 @@ async function submitSurveyForm() {
   }
 }
 
+// Ensure a storage bucket exists (create if missing)
+async function ensureBucket(bucketName) {
+  const { data: buckets } = await supabaseClient.storage.listBuckets();
+  const exists = buckets && buckets.some(b => b.name === bucketName);
+  if (!exists) {
+    await supabaseClient.storage.createBucket(bucketName, { public: true });
+  }
+}
+
 // Upload base64 image data to Supabase storage bucket
 async function uploadImageToBucket(base64Data, bucketName, fileName) {
   try {
+    // Auto-create bucket if it doesn't exist
+    await ensureBucket(bucketName);
+
     const response = await fetch(base64Data);
     const blob = await response.blob();
-    
+
     const { error } = await supabaseClient.storage
       .from(bucketName)
       .upload(fileName, blob, {
@@ -967,19 +979,20 @@ async function uploadImageToBucket(base64Data, bucketName, fileName) {
         upsert: true,
         contentType: blob.type || 'image/jpeg'
       });
-      
+
     if (error) throw error;
-    
+
     const { data: publicUrlData } = supabaseClient.storage
       .from(bucketName)
       .getPublicUrl(fileName);
-      
+
     return publicUrlData.publicUrl;
   } catch (error) {
     console.error('Image upload failed:', error);
     throw error;
   }
 }
+
 
 // Generate Card via html2canvas and save to Storage
 async function generateAndUploadCard(member, profileUrl, cardPrefix) {
