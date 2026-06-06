@@ -607,31 +607,122 @@ const PINCODE_LOOKUP = {
   '577527': { countryId: '1', stateId: '1', districtId: '2', talukId: '6' }
 };
 
+function getBestMatch(inputName, candidateList) {
+  if (!candidateList || candidateList.length === 0) return null;
+  
+  const clean = (str) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanInput = clean(inputName);
+  
+  // 1. Check exact clean match
+  let match = candidateList.find(c => clean(c.name) === cleanInput);
+  if (match) return match;
+  
+  // 2. Check if clean name is substring or vice versa
+  match = candidateList.find(c => clean(c.name).includes(cleanInput) || cleanInput.includes(clean(c.name)));
+  if (match) return match;
+  
+  // 3. Check for phonetic/vowel-insensitive match
+  const devowel = (str) => clean(str).replace(/[aeiou]/g, '');
+  const devowelInput = devowel(inputName);
+  match = candidateList.find(c => devowel(c.name) === devowelInput);
+  if (match) return match;
+  
+  // 4. Check if devoweled name is substring
+  match = candidateList.find(c => devowel(c.name).includes(devowelInput) || devowelInput.includes(devowel(c.name)));
+  if (match) return match;
+
+  return candidateList[0];
+}
+
 async function onPincodeChange(cardPrefix) {
   const pincode = document.getElementById(`${cardPrefix}-pincode`).value.trim();
-  if (pincode.length === 6 && PINCODE_LOOKUP[pincode]) {
-    const lookup = PINCODE_LOOKUP[pincode];
-    showLoading(true, 'Resolving locations from Pincode...');
-    
-    try {
-      document.getElementById(`${cardPrefix}-country`).value = lookup.countryId;
+  if (pincode.length !== 6) return;
+
+  showLoading(true, 'Resolving locations from Pincode...');
+  
+  try {
+    let countryId = null;
+    let stateId = null;
+    let districtId = null;
+    let talukId = null;
+
+    if (PINCODE_LOOKUP[pincode]) {
+      const lookup = PINCODE_LOOKUP[pincode];
+      countryId = lookup.countryId;
+      stateId = lookup.stateId;
+      districtId = lookup.districtId;
+      talukId = lookup.talukId;
+    } else {
+      // Fetch from public India Postal Pincode API
+      const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = await res.json();
+      
+      if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
+        const po = data[0].PostOffice[0];
+        const stateName = po.State;
+        const districtName = po.District;
+        const talukName = po.Block; // Block matches Taluk in post office details
+        
+        countryId = '1'; // India
+        
+        // Find state
+        const { data: states } = await supabaseClient
+          .from('states')
+          .select('id, name')
+          .ilike('name', `%${stateName}%`);
+        
+        if (states && states.length > 0) {
+          stateId = String(states[0].id);
+          
+          // Find district
+          const { data: districts } = await supabaseClient
+            .from('districts')
+            .select('id, name')
+            .eq('state_id', stateId);
+          
+          const matchedDistrict = getBestMatch(districtName, districts);
+          if (matchedDistrict) {
+            districtId = String(matchedDistrict.id);
+            
+            // Find taluk
+            const { data: taluks } = await supabaseClient
+              .from('taluks')
+              .select('id, name')
+              .eq('district_id', districtId);
+            
+            const matchedTaluk = getBestMatch(talukName, taluks);
+            if (matchedTaluk) {
+              talukId = String(matchedTaluk.id);
+            }
+          }
+        }
+      }
+    }
+
+    if (countryId && stateId && districtId && talukId) {
+      document.getElementById(`${cardPrefix}-country`).value = countryId;
       await onCascadeChange(cardPrefix, 'country');
       
-      document.getElementById(`${cardPrefix}-state`).value = lookup.stateId;
+      document.getElementById(`${cardPrefix}-state`).value = stateId;
       await onCascadeChange(cardPrefix, 'state');
       
-      document.getElementById(`${cardPrefix}-district`).value = lookup.districtId;
+      document.getElementById(`${cardPrefix}-district`).value = districtId;
       await onCascadeChange(cardPrefix, 'district');
       
-      document.getElementById(`${cardPrefix}-taluk`).value = lookup.talukId;
+      document.getElementById(`${cardPrefix}-taluk`).value = talukId;
       await onCascadeChange(cardPrefix, 'taluk');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      showLoading(false);
+      
+      showToast('Pincode resolved successfully!', 'success');
+    } else {
+      showToast('Could not resolve location for this pincode.', 'warning');
     }
+  } catch (e) {
+    console.error('Pincode resolution failed:', e);
+    showToast('Failed to resolve pincode.', 'error');
+  } finally {
+    showLoading(false);
+    saveAutosaveForm();
   }
-  saveAutosaveForm();
 }
 
 function formatAadharInput(cardPrefix) {
@@ -1118,7 +1209,7 @@ async function generateAndUploadCard(member, profileUrl, cardPrefix) {
 }
 
 // Horizontal card template generator
-function getSingleCardHTML(m, includeDownloadBtn = true) {
+function getSingleCardHTML(m, includeDownloadBtn = true, memberCount = 0, householdId = null) {
   const photo = m.photo_url || 'assets/app_icon.jpg';
   const downloadBtn = includeDownloadBtn 
     ? `<button class="id-card-download-btn" onclick="downloadCardImage('${m.card_image_url || ''}', '${m.full_name}')" title="Download PNG">
@@ -1126,8 +1217,19 @@ function getSingleCardHTML(m, includeDownloadBtn = true) {
        </button>`
     : '';
     
+  const clickAction = householdId 
+    ? `openHouseholdCardsModal('${householdId}')`
+    : (includeDownloadBtn ? `openCardFullModal('${m.card_image_url || ''}')` : '');
+
+  const memberRow = memberCount > 0
+    ? `<div class="id-card-row id-card-member-count">
+         <span class="id-card-row-icon">👥</span>
+         <span class="id-card-row-text" style="color:var(--accent); font-weight:700;">+${memberCount} Family Members</span>
+       </div>`
+    : '';
+
   return `
-    <div class="id-card-wrapper" onclick="${includeDownloadBtn ? `openCardFullModal('${m.card_image_url || ''}')` : ''}">
+    <div class="id-card-wrapper" onclick="${clickAction}">
       ${downloadBtn}
       <div class="id-card-inner">
         <div class="id-card-overlay">
@@ -1153,6 +1255,7 @@ function getSingleCardHTML(m, includeDownloadBtn = true) {
               <span class="id-card-row-icon">🏢</span>
               <span class="id-card-row-text">Taralabalushishyamandali</span>
             </div>
+            ${memberRow}
           </div>
         </div>
       </div>
@@ -1187,11 +1290,52 @@ function openCardFullModal(url) {
   document.getElementById('card-detail-modal').classList.remove('hidden');
 }
 
+// Open modal showing all cards of a household
+async function openHouseholdCardsModal(householdId) {
+  event.stopPropagation(); // Prevent trigger recursion
+  const members = userHouseholds[householdId];
+  if (!members || members.length === 0) return;
+
+  const container = document.getElementById('card-render-container');
+  container.innerHTML = '<div class="loading-spinner"></div>';
+  document.getElementById('card-detail-modal').classList.remove('hidden');
+
+  try {
+    // Fetch card images mapping for these members
+    const memberIds = members.map(m => m.member_id).filter(Boolean);
+    let cardMap = {};
+    if (memberIds.length > 0) {
+      const { data: cards } = await supabaseClient
+        .from('member_cards')
+        .select('*')
+        .in('member_id', memberIds);
+      if (cards) cards.forEach(c => { cardMap[c.member_id] = c.card_image_url; });
+    }
+
+    container.innerHTML = members.map(m => getSingleCardHTML({
+      member_id: m.member_id,
+      full_name: m.full_name,
+      phone: m.phone,
+      age: m.age,
+      district_name: m.district_name,
+      taluk_name: m.taluk_name,
+      photo_url: m.photo_url,
+      card_image_url: cardMap[m.member_id] || null
+    }, true, 0, null)).join('');
+
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = '<p class="empty-state">Failed to load cards. Please try again.</p>';
+  }
+}
+
 function closeCardModal() {
   document.getElementById('card-detail-modal').classList.add('hidden');
 }
 
 // ── USER DASHBOARD CARD HISTORY ──────────────────────
+let userHouseholds = {}; // Global store for user households
+
 async function loadUserCards() {
   const container = document.getElementById('user-cards-list');
   container.innerHTML = '<div class="loading-spinner"></div>';
@@ -1229,6 +1373,15 @@ async function loadUserCards() {
       .order('created_at', { ascending: true });
     if (mErr) throw mErr;
 
+    // Group members by household_id
+    userHouseholds = {};
+    members.forEach(m => {
+      if (!userHouseholds[m.household_id]) {
+        userHouseholds[m.household_id] = [];
+      }
+      userHouseholds[m.household_id].push(m);
+    });
+
     // Fetch card images for these member_ids
     const memberIds = members.map(m => m.member_id).filter(Boolean);
     let cardMap = {};
@@ -1240,16 +1393,27 @@ async function loadUserCards() {
       if (cards) cards.forEach(c => { cardMap[c.member_id] = c.card_image_url; });
     }
 
-    container.innerHTML = members.map(m => getSingleCardHTML({
-      member_id: m.member_id,
-      full_name: m.full_name,
-      phone: m.phone,
-      age: m.age,
-      district_name: m.district_name,
-      taluk_name: m.taluk_name,
-      photo_url: m.photo_url,
-      card_image_url: cardMap[m.member_id] || null
-    })).join('');
+    // Generate list of household head cards
+    const headCardsHtml = [];
+    Object.keys(userHouseholds).forEach(hId => {
+      const hMembers = userHouseholds[hId];
+      // Find head or fallback to first member
+      const head = hMembers.find(m => m.is_head) || hMembers[0];
+      const familyCount = hMembers.length - 1; // Exclude head
+
+      headCardsHtml.push(getSingleCardHTML({
+        member_id: head.member_id,
+        full_name: head.full_name,
+        phone: head.phone,
+        age: head.age,
+        district_name: head.district_name,
+        taluk_name: head.taluk_name,
+        photo_url: head.photo_url,
+        card_image_url: cardMap[head.member_id] || null
+      }, true, familyCount, hId));
+    });
+
+    container.innerHTML = headCardsHtml.join('');
 
   } catch (err) {
     console.error('Failed to load user cards:', err);

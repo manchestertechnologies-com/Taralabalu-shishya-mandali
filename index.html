@@ -494,8 +494,8 @@
         <h3>Membership Card</h3>
         <button class="btn-close-modal" onclick="closeCardModal()">×</button>
       </header>
-      <div class="modal-body centered-modal-body">
-        <div id="card-render-container">
+      <div class="modal-body centered-modal-body" style="padding: 16px;">
+        <div id="card-render-container" style="display: flex; flex-direction: column; gap: 16px; align-items: center; max-height: 70vh; overflow-y: auto; padding: 10px; width: 100%;">
           <!-- Loaded dynamically -->
         </div>
       </div>
@@ -517,6 +517,6 @@
   </div>
 
   <!-- Core JS logic script (Cache-busted) -->
-  <script src="app.js?v=127"></script>
+  <script src="app.js?v=128"></script>
 </body>
 </html>
