@@ -7,6 +7,22 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 let supabaseClient = null;
 
+// Global transparent helper to map mismatched dynamic member element IDs
+const _originalGetElementById = document.getElementById;
+document.getElementById = function(id) {
+  let el = _originalGetElementById.call(document, id);
+  if (!el && id && typeof id === 'string' && id.startsWith('member-')) {
+    const parts = id.split('-');
+    const index = parts[1];
+    if (index !== undefined && !isNaN(index)) {
+      const suffix = parts.slice(2).join('-');
+      const alternateId = `member-${suffix}-${index}`;
+      el = _originalGetElementById.call(document, alternateId);
+    }
+  }
+  return el;
+};
+
 // OTP Constants
 const USER_OTP = '123456';
 const ADMIN_OTP = '654321';
