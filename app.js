@@ -84,6 +84,13 @@ function setupEventListeners() {
       otpInput.value = otpInput.value.replace(/\D/g, '');
     });
   }
+
+  // Enforce digits only for form phone inputs
+  document.addEventListener('input', (e) => {
+    if (e.target && (e.target.id === 'head-phone' || e.target.id.startsWith('member-phone-'))) {
+      e.target.value = e.target.value.replace(/\D/g, '');
+    }
+  });
 }
 
 function checkSession() {
@@ -178,6 +185,16 @@ async function showUserPortal() {
   
   // Restore autosaved data
   await restoreAutosaveForm();
+
+  // Prefill head phone if empty or if autosave had non-numeric/empty value
+  const headPhoneInput = document.getElementById('head-phone');
+  if (headPhoneInput) {
+    const isNumeric = /^\d{10}$/.test(headPhoneInput.value);
+    if (!headPhoneInput.value || !isNumeric) {
+      headPhoneInput.value = currentUserPhone;
+      saveAutosaveForm();
+    }
+  }
   
   // Render vachanas list
   renderWelcomeVachanas();
@@ -1169,11 +1186,11 @@ async function loadUserCards() {
   }
 
   try {
-    // Find all household_ids associated with the logged-in user's phone number
+    // Find all household_ids associated with the logged-in user's phone number or photo URL match
     const { data: userMembers, error: uErr } = await supabaseClient
       .from('members')
       .select('household_id')
-      .eq('phone', currentUserPhone);
+      .or(`phone.eq.${currentUserPhone},photo_url.like.%_${currentUserPhone}_%`);
     if (uErr) throw uErr;
 
     if (!userMembers || userMembers.length === 0) {
