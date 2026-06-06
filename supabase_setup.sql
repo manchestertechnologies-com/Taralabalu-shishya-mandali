@@ -7,6 +7,29 @@
 --   • Major Taluks/Blocks/Mandals for all other States
 -- ============================================================
 
+-- ============================================================
+-- STORAGE BUCKETS (profile-photos and card-images)
+-- ============================================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES
+  ('profile-photos', 'profile-photos', true),
+  ('card-images',    'card-images',    true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DROP POLICY IF EXISTS "Public read profile-photos"   ON storage.objects;
+DROP POLICY IF EXISTS "Public write profile-photos"  ON storage.objects;
+DROP POLICY IF EXISTS "Public update profile-photos" ON storage.objects;
+DROP POLICY IF EXISTS "Public read card-images"      ON storage.objects;
+DROP POLICY IF EXISTS "Public write card-images"     ON storage.objects;
+DROP POLICY IF EXISTS "Public update card-images"    ON storage.objects;
+
+CREATE POLICY "Public read profile-photos"   ON storage.objects FOR SELECT USING (bucket_id = 'profile-photos');
+CREATE POLICY "Public write profile-photos"  ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'profile-photos');
+CREATE POLICY "Public update profile-photos" ON storage.objects FOR UPDATE USING (bucket_id = 'profile-photos');
+CREATE POLICY "Public read card-images"      ON storage.objects FOR SELECT USING (bucket_id = 'card-images');
+CREATE POLICY "Public write card-images"     ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'card-images');
+CREATE POLICY "Public update card-images"    ON storage.objects FOR UPDATE USING (bucket_id = 'card-images');
+
 -- 1. DROP EXISTING TABLES AND VIEWS (Clean Slate)
 DROP VIEW IF EXISTS members_resolved CASCADE;
 DROP TABLE IF EXISTS member_cards CASCADE;

@@ -849,9 +849,13 @@ async function submitSurveyForm() {
   try {
     // A. Process and upload Head details
     let headPhotoUrl = null;
-    if (h.photoBase64.startsWith('data:image')) {
-      const fileName = `head_${currentUserPhone}_${Date.now()}.jpg`;
-      headPhotoUrl = await uploadImageToBucket(h.photoBase64, 'profile-photos', fileName);
+    if (h.photoBase64 && h.photoBase64.startsWith('data:image')) {
+      try {
+        const fileName = `head_${currentUserPhone}_${Date.now()}.jpg`;
+        headPhotoUrl = await uploadImageToBucket(h.photoBase64, 'profile-photos', fileName);
+      } catch (photoErr) {
+        console.warn('Head photo upload failed, continuing without photo:', photoErr.message);
+      }
     }
     
     const { data: dbHead, error: headErr } = await supabaseClient
@@ -898,9 +902,13 @@ async function submitSurveyForm() {
       showLoading(true, `Uploading photo for Member ${i + 1}...`);
       
       let memberPhotoUrl = null;
-      if (m.photoBase64.startsWith('data:image')) {
-        const fileName = `member_${i}_${currentUserPhone}_${Date.now()}.jpg`;
-        memberPhotoUrl = await uploadImageToBucket(m.photoBase64, 'profile-photos', fileName);
+      if (m.photoBase64 && m.photoBase64.startsWith('data:image')) {
+        try {
+          const fileName = `member_${i}_${currentUserPhone}_${Date.now()}.jpg`;
+          memberPhotoUrl = await uploadImageToBucket(m.photoBase64, 'profile-photos', fileName);
+        } catch (photoErr) {
+          console.warn(`Member ${i+1} photo upload failed, continuing without photo:`, photoErr.message);
+        }
       }
       
       showLoading(true, `Saving member ${i + 1} details...`);
