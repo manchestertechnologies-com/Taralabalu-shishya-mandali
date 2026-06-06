@@ -44,7 +44,7 @@ const LOCATION_DATA = {
 };
 
 // ── Supabase Client (loaded via CDN dynamically) ──────
-let supabase = null;
+let supabaseClient = null;
 
 function loadSupabaseSDK() {
   if (SUPABASE_URL === 'YOUR_PROJECT_URL_HERE') {
@@ -57,7 +57,7 @@ function loadSupabaseSDK() {
   script.onload = () => {
     try {
       if (window.supabase && window.supabase.createClient) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         isOnline = true;
         console.log('✅ Supabase connected dynamically');
         // If a session was auto-restored, refresh data
@@ -182,7 +182,7 @@ function saveLocalDB() {
 // ─── SUPABASE: Register/fetch enumerator ──────────────
 async function sbRegisterEnumerator(phone) {
   if (!isOnline) return;
-  const { error } = await supabase.from('enumerators').upsert(
+  const { error } = await supabaseClient.from('enumerators').upsert(
     { phone, name: 'Volunteer' },
     { onConflict: 'phone' }
   );
@@ -193,7 +193,7 @@ async function sbRegisterEnumerator(phone) {
 async function getEnumeratorUuid(phone) {
   if (!isOnline) return null;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('enumerators')
       .select('id')
       .eq('phone', phone)
@@ -209,7 +209,7 @@ async function getEnumeratorUuid(phone) {
     }
     
     // Auto register if not exists
-    const { data: newData, error: insertError } = await supabase
+    const { data: newData, error: insertError } = await supabaseClient
       .from('enumerators')
       .insert({ phone, name: 'Volunteer' })
       .select('id')
@@ -243,7 +243,7 @@ async function uploadBase64Image(base64Data, filename) {
     
     const blob = new Blob([uInt8Array], { type: contentType });
     
-    const { data, error } = await supabase.storage
+    const { data, error } = await supabaseClient.storage
       .from('profile-images')
       .upload(filename, blob, {
         cacheControl: '3600',
@@ -256,7 +256,7 @@ async function uploadBase64Image(base64Data, filename) {
       return base64Data; // Fallback to base64
     }
     
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData } = supabaseClient.storage
       .from('profile-images')
       .getPublicUrl(filename);
       
@@ -335,7 +335,7 @@ async function sbFetchMyHouseholds(phone) {
     }
     if (!enumeratorUuid) return getMyHouseholdsLocal();
     
-    const { data: members, error } = await supabase
+    const { data: members, error } = await supabaseClient
       .from('household_members')
       .select('*')
       .eq('household_user_id', enumeratorUuid)
@@ -357,7 +357,7 @@ async function sbFetchMyHouseholds(phone) {
 async function sbFetchAllHouseholds() {
   if (!isOnline) return householdsDB;
   try {
-    const { data: members, error } = await supabase
+    const { data: members, error } = await supabaseClient
       .from('household_members')
       .select('*')
       .order('household_created_at', { ascending: false });
@@ -378,7 +378,7 @@ async function sbFetchAllHouseholds() {
 async function sbFetchAllEnumerators() {
   if (!isOnline) return enumeratorsDB;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('enumerators')
       .select('*')
       .order('joined_at', { ascending: false });
@@ -408,7 +408,7 @@ async function sbSubmitHousehold(payload) {
     if (!enumeratorUuid) return { success: false, error: 'Could not resolve volunteer ID' };
 
     // 1. Insert household row
-    const { data: hhRow, error: hhErr } = await supabase
+    const { data: hhRow, error: hhErr } = await supabaseClient
       .from('households')
       .insert({ user_id: enumeratorUuid })
       .select()
@@ -466,7 +466,7 @@ async function sbSubmitHousehold(payload) {
       }
     });
 
-    const { error: mErr } = await supabase
+    const { error: mErr } = await supabaseClient
       .from('persons')
       .insert(membersToInsert);
       
@@ -557,7 +557,30 @@ function flattenMember(m, isHead) {
   };
 }
 
-// ── DATE HELPERS ───────────────────// ── LOGIN FLOW ─────────────────────────────────────────
+// ── DATE HELPERS ───────────────────────────────────────
+function updateDate() {
+  const now  = new Date();
+  const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const str  = now.toLocaleDateString('en-IN', opts);
+  ['current-date','admin-current-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `📅 ${str}`;
+  });
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good Morning';
+  if (h < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
+function formatPhone(p) {
+  if (!p || p.length < 5) return p;
+  return `+91 ${p.slice(0,5)} ${p.slice(5)}`;
+}
+
+// ── LOGIN FLOW ─────────────────────────────────────────
 function validatePhone() {
   const inp   = document.getElementById('phone-input');
   const btn   = document.getElementById('send-otp-btn');
@@ -1797,7 +1820,7 @@ async function downloadSingleCardImage(cardId, name) {
 async function sbFetchBroadcastMessages() {
   if (!isOnline) return getLocalBroadcastMessages();
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('messages')
       .select('*')
       .order('created_at', { ascending: false });
@@ -1821,7 +1844,7 @@ async function sbBroadcastMessage(text, imgUrl) {
   
   if (isOnline) {
     try {
-      const { error } = await supabase.from('messages').insert(payload);
+      const { error } = await supabaseClient.from('messages').insert(payload);
       if (!error) {
         saveLocalBroadcast(payload);
         return { success: true };
@@ -1954,7 +1977,7 @@ async function deleteBroadcastMessage(index) {
     const target = msgs[index];
     if (isOnline && target.id) {
       try {
-        await supabase.from('messages').delete().eq('id', target.id);
+        await supabaseClient.from('messages').delete().eq('id', target.id);
       } catch (e) {
         console.error('Delete online message failed:', e);
       }
