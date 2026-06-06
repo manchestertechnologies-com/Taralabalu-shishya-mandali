@@ -564,7 +564,7 @@ function validatePhone() {
   const err   = document.getElementById('phone-error');
   const val   = inp.value.replace(/\D/g, '');
   inp.value   = val;
-  const valid = /^[6-9]\d{9}$/.test(val);
+  const valid = /^\d{10}$/.test(val);
   btn.disabled = !valid;
   if (valid || val.length === 0) err.classList.add('hidden');
   else if (val.length >= 10)    err.classList.remove('hidden');
@@ -572,7 +572,7 @@ function validatePhone() {
 
 function sendOTP() {
   const val = document.getElementById('phone-input').value;
-  if (!/^[6-9]\d{9}$/.test(val)) return;
+  if (!/^\d{10}$/.test(val)) return;
   currentPhone = val;
   document.getElementById('display-phone').textContent = formatPhone(val);
 
