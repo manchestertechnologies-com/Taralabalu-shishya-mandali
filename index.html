@@ -349,8 +349,8 @@
 
             <div class="filter-buttons">
               <button class="btn btn-outlined btn-reset-filters" onclick="resetAdminFilters()">Reset</button>
-              <button class="btn btn-secondary btn-export" onclick="exportData('csv')">Export CSV</button>
-              <button class="btn btn-secondary btn-export" onclick="exportData('json')">Export JSON</button>
+              <button class="btn btn-secondary btn-export" onclick="adminDownloadCardImage(filteredMembers[0]?.member_id, filteredMembers[0]?.full_name)" title="Download selected member card as image" style="background:#0ea5e9;color:#fff;">🖼️ Download Card</button>
+              <button class="btn btn-secondary btn-export" onclick="adminExportSinglePDF(filteredMembers[0]?.member_id, filteredMembers[0]?.full_name)" title="Export selected member as PDF" style="background:#f97316;color:#fff;">📄 Export PDF</button>
             </div>
           </div>
 
@@ -517,6 +517,6 @@
   </div>
 
   <!-- Core JS logic script (Cache-busted) -->
-  <script src="app.js?v=123"></script>
+  <script src="app.js?v=124"></script>
 </body>
 </html>

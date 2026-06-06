@@ -1153,47 +1153,55 @@ function closeCardModal() {
 async function loadUserCards() {
   const container = document.getElementById('user-cards-list');
   container.innerHTML = '<div class="loading-spinner"></div>';
-  
+
   if (!supabaseClient) {
     container.innerHTML = '<p class="empty-state">Database not connected.</p>';
     return;
   }
-  
+
   try {
-    const { data, error } = await supabaseClient
+    // Fetch members for this phone
+    const { data: members, error: mErr } = await supabaseClient
       .from('members_resolved')
-      .select('*, member_cards(*)')
+      .select('*')
       .eq('phone', currentUserPhone)
       .order('created_at', { ascending: false });
-      
-    if (error) throw error;
-    
-    if (!data || data.length === 0) {
+    if (mErr) throw mErr;
+
+    if (!members || members.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
           <span class="empty-icon">💳</span>
           <p>No membership cards generated yet.<br>ನಮೂನೆಗಳನ್ನು ಇನ್ನೂ ರಚಿಸಲಾಗಿಲ್ಲ</p>
-        </div>
-      `;
+        </div>`;
       return;
     }
-    
-    container.innerHTML = data.map(m => {
-      const card = m.member_cards && m.member_cards[0];
-      return getSingleCardHTML({
-        member_id: m.member_id,
-        full_name: m.full_name,
-        phone: m.phone,
-        age: m.age,
-        district_name: m.district_name,
-        taluk_name: m.taluk_name,
-        photo_url: m.photo_url,
-        card_image_url: card ? card.card_image_url : null
-      });
-    }).join('');
+
+    // Fetch card images for these member_ids
+    const memberIds = members.map(m => m.member_id).filter(Boolean);
+    let cardMap = {};
+    if (memberIds.length > 0) {
+      const { data: cards } = await supabaseClient
+        .from('member_cards')
+        .select('*')
+        .in('member_id', memberIds);
+      if (cards) cards.forEach(c => { cardMap[c.member_id] = c.card_image_url; });
+    }
+
+    container.innerHTML = members.map(m => getSingleCardHTML({
+      member_id: m.member_id,
+      full_name: m.full_name,
+      phone: m.phone,
+      age: m.age,
+      district_name: m.district_name,
+      taluk_name: m.taluk_name,
+      photo_url: m.photo_url,
+      card_image_url: cardMap[m.member_id] || null
+    })).join('');
+
   } catch (err) {
     console.error('Failed to load user cards:', err);
-    container.innerHTML = '<p class="empty-state">Failed to fetch cards.</p>';
+    container.innerHTML = '<p class="empty-state">Failed to fetch cards. Please try again.</p>';
   }
 }
 
@@ -1354,20 +1362,17 @@ function resetAdminFilters() {
 
 function renderAdminMembersTable() {
   const tbody = document.getElementById('admin-members-tbody');
-  
+
   if (filteredMembers.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="10" style="text-align:center;color:var(--text-secondary);">No records found.</td>
-      </tr>
-    `;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-secondary);">No records found.</td></tr>`;
     return;
   }
-  
+
   tbody.innerHTML = filteredMembers.map(m => {
     const photo = m.photo_url || 'assets/app_icon.jpg';
     const dateStr = m.created_at ? new Date(m.created_at).toLocaleDateString('en-IN') : 'N/A';
-    
+    const cardUrl = m._cardUrl || '';
+
     return `
       <tr>
         <td style="font-weight:700;">ID ${m.member_id}</td>
@@ -1381,6 +1386,12 @@ function renderAdminMembersTable() {
         <td>${dateStr}</td>
         <td>
           <div class="table-actions">
+            <button class="btn-table btn-download-card" onclick="adminDownloadCardImage(${m.member_id}, '${m.full_name}')" title="Download ID Card as Image" style="background:#0ea5e9;color:#fff;">
+              🖼️
+            </button>
+            <button class="btn-table btn-download-pdf" onclick="adminExportSinglePDF(${m.member_id}, '${m.full_name}')" title="Export as PDF" style="background:#f97316;color:#fff;">
+              📄
+            </button>
             <button class="btn-table btn-edit-member" onclick="openEditModal(${m.id})" title="Edit Member">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg>
             </button>
@@ -1392,6 +1403,115 @@ function renderAdminMembersTable() {
       </tr>
     `;
   }).join('');
+}
+
+// ── ADMIN: Download ID Card as Image ─────────────────
+async function adminDownloadCardImage(memberId, name) {
+  showLoading(true, 'Fetching card image...');
+  try {
+    const { data: cards } = await supabaseClient
+      .from('member_cards')
+      .select('card_image_url')
+      .eq('member_id', memberId)
+      .limit(1);
+
+    if (!cards || cards.length === 0 || !cards[0].card_image_url) {
+      showToast('No card image found for this member.', 'error');
+      return;
+    }
+    const url = cards[0].card_image_url;
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${name.replace(/\s+/g,'_')}_ID_Card.png`;
+    link.click();
+    showToast('Card image downloaded!', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('Download failed.', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+// ── ADMIN: Export ID Card as PDF ─────────────────────
+async function adminExportSinglePDF(memberId, name) {
+  showLoading(true, 'Generating PDF...');
+  try {
+    // Find member data
+    const member = allMembers.find(m => m.member_id === memberId);
+    if (!member) { showToast('Member not found.', 'error'); return; }
+
+    // Get card image URL
+    const { data: cards } = await supabaseClient
+      .from('member_cards')
+      .select('card_image_url')
+      .eq('member_id', memberId)
+      .limit(1);
+
+    const cardUrl = cards && cards.length > 0 ? cards[0].card_image_url : null;
+
+    // Build printable HTML
+    const printWin = window.open('', '_blank');
+    const photo = member.photo_url || 'assets/app_icon.jpg';
+    const cardImgHtml = cardUrl
+      ? `<img src="${cardUrl}" style="width:100%;max-width:400px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);">`
+      : `<p style="color:#888;">No card image stored.</p>`;
+
+    printWin.document.write(`
+      <!DOCTYPE html><html><head>
+        <title>ID Card — ${member.full_name}</title>
+        <style>
+          body { font-family: 'Segoe UI', sans-serif; background:#f8fafc; margin:0; padding:24px; }
+          .header { text-align:center; background:linear-gradient(135deg,#ff6b35,#f7931e); color:#fff; padding:20px; border-radius:12px; margin-bottom:24px; }
+          .header h1 { margin:0; font-size:20px; }
+          .header p  { margin:4px 0 0; font-size:13px; opacity:.85; }
+          .card-img  { text-align:center; margin-bottom:24px; }
+          .details   { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,.08); }
+          .details table { width:100%; border-collapse:collapse; }
+          .details td { padding:8px 12px; border-bottom:1px solid #f1f5f9; font-size:14px; }
+          .details td:first-child { font-weight:600; color:#64748b; width:40%; }
+          .details td:last-child { color:#1e293b; }
+          .footer { text-align:center; margin-top:24px; font-size:11px; color:#94a3b8; }
+          @media print { body { background:#fff; } }
+        </style>
+      </head><body>
+        <div class="header">
+          <h1>Taralabalu Sishya Mandali</h1>
+          <p>Member ID Card</p>
+        </div>
+        <div class="card-img">${cardImgHtml}</div>
+        <div class="details">
+          <table>
+            <tr><td>Member ID</td><td>TSM-${String(member.member_id).padStart(5,'0')}</td></tr>
+            <tr><td>Full Name</td><td>${member.full_name}</td></tr>
+            <tr><td>Phone</td><td>${member.phone}</td></tr>
+            <tr><td>Age</td><td>${member.age} years</td></tr>
+            <tr><td>Education</td><td>${member.education || 'N/A'}</td></tr>
+            <tr><td>Occupation</td><td>${member.occupation || 'N/A'}</td></tr>
+            <tr><td>District</td><td>${member.district_name || 'N/A'}</td></tr>
+            <tr><td>Taluk</td><td>${member.taluk_name || 'N/A'}</td></tr>
+            <tr><td>State</td><td>${member.state_name || 'N/A'}</td></tr>
+            <tr><td>Country</td><td>${member.country_name || 'N/A'}</td></tr>
+            <tr><td>Address</td><td>${member.address || 'N/A'}</td></tr>
+            <tr><td>Pincode</td><td>${member.pincode || 'N/A'}</td></tr>
+            <tr><td>Registered On</td><td>${member.created_at ? new Date(member.created_at).toLocaleDateString('en-IN') : 'N/A'}</td></tr>
+          </table>
+        </div>
+        <div class="footer">Printed on ${new Date().toLocaleString('en-IN')} • Taralabalu Sishya Mandali</div>
+      </body></html>
+    `);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => { printWin.print(); }, 600);
+    showToast('PDF ready to print/save!', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('PDF generation failed.', 'error');
+  } finally {
+    showLoading(false);
+  }
 }
 
 // Delete Member Row
