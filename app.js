@@ -562,12 +562,22 @@ function validatePhone() {
   const inp   = document.getElementById('phone-input');
   const btn   = document.getElementById('send-otp-btn');
   const err   = document.getElementById('phone-error');
-  const val   = inp.value.replace(/\D/g, '');
+  if (!inp || !btn) return;
+
+  let val = inp.value.replace(/\D/g, '');
+  if (val.length === 12 && val.startsWith('91')) {
+    val = val.slice(2);
+  } else if (val.length === 11 && val.startsWith('0')) {
+    val = val.slice(1);
+  }
+
   inp.value   = val;
   const valid = /^\d{10}$/.test(val);
   btn.disabled = !valid;
-  if (valid || val.length === 0) err.classList.add('hidden');
-  else if (val.length >= 10)    err.classList.remove('hidden');
+  if (err) {
+    if (valid || val.length === 0) err.classList.add('hidden');
+    else if (val.length >= 10)    err.classList.remove('hidden');
+  }
 }
 
 function sendOTP() {
