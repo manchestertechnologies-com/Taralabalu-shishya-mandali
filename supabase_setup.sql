@@ -1,12 +1,12 @@
--- COMPLETE UNIFIED SUPABASE SETUP SCRIPT
--- Run this entire script in your Supabase SQL Editor to configure all tables, views, policies, and location data.
+-- COMPLETE REBUILD SUPABASE SETUP SCRIPT
+-- Run this entire script in your Supabase SQL Editor to configure all tables, triggers, views, and seed location data.
 
--- 1. DROP EXISTING VIEWS AND TABLES IF THEY CONFLICT (Clean Slate)
-DROP VIEW IF EXISTS household_members CASCADE;
-DROP TABLE IF EXISTS household_members CASCADE; -- Added to drop existing table with this name
-DROP TABLE IF EXISTS persons CASCADE;
-DROP TABLE IF EXISTS households CASCADE;
-DROP TABLE IF EXISTS enumerators CASCADE;
+-- 1. DROP EXISTING TABLES AND VIEWS (Clean Slate)
+DROP VIEW IF EXISTS members_resolved CASCADE;
+DROP TABLE IF EXISTS member_cards CASCADE;
+DROP TABLE IF EXISTS members CASCADE;
+DROP TABLE IF EXISTS wards CASCADE;
+DROP TABLE IF EXISTS taluks CASCADE;
 DROP TABLE IF EXISTS districts CASCADE;
 DROP TABLE IF EXISTS states CASCADE;
 DROP TABLE IF EXISTS countries CASCADE;
@@ -29,152 +29,213 @@ CREATE TABLE districts (
   name TEXT NOT NULL
 );
 
--- 3. CREATE ENUMERATORS TABLE
-CREATE TABLE enumerators (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  phone TEXT UNIQUE NOT NULL,
-  name TEXT DEFAULT 'Enumerator',
-  joined_at TIMESTAMPTZ DEFAULT NOW(),
-  is_active BOOLEAN DEFAULT TRUE
+CREATE TABLE taluks (
+  id SERIAL PRIMARY KEY,
+  district_id INT REFERENCES districts(id) ON DELETE CASCADE,
+  name TEXT NOT NULL
 );
 
--- 4. CREATE HOUSEHOLDS TABLE
-CREATE TABLE households (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL, -- Links to enumerator/user ID
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE wards (
+  id SERIAL PRIMARY KEY,
+  taluk_id INT REFERENCES taluks(id) ON DELETE CASCADE,
+  name TEXT NOT NULL
 );
 
--- 5. CREATE PERSONS (HOUSEHOLD MEMBERS) TABLE
-CREATE TABLE persons (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  household_id UUID REFERENCES households(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  relationship TEXT,
-  is_head BOOLEAN DEFAULT FALSE,
-  date_of_birth DATE,
-  age INTEGER,
-  aadhar_number TEXT,
-  mobile_number TEXT,
-  marital_status TEXT,
-  education TEXT,
-  employment_sector TEXT,
-  occupation TEXT,
-  traditional_occupation TEXT,
-  country TEXT DEFAULT 'India',
-  state TEXT,
-  district TEXT,
-  taluk TEXT,
-  nagara TEXT,
-  ward TEXT,
-  pincode TEXT,
-  profile_image_url TEXT,
-  sequential_id INT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+-- 3. CREATE MEMBERS TABLE
+CREATE TABLE members (
+  id SERIAL PRIMARY KEY,
+  member_id INT UNIQUE, -- Sequential generated ID: 1, 2, 3...
+  full_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  dob DATE NOT NULL,
+  age INT NOT NULL,
+  country_id INT REFERENCES countries(id) ON DELETE SET NULL,
+  state_id INT REFERENCES states(id) ON DELETE SET NULL,
+  district_id INT REFERENCES districts(id) ON DELETE SET NULL,
+  taluk_id INT REFERENCES taluks(id) ON DELETE SET NULL,
+  ward_id INT REFERENCES wards(id) ON DELETE SET NULL,
+  address TEXT NOT NULL,
+  photo_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. CREATE HOUSEHOLD_MEMBERS VIEW FOR APP QUERIES
-CREATE OR REPLACE VIEW household_members AS
+-- 4. CREATE MEMBER_CARDS TABLE
+CREATE TABLE member_cards (
+  id SERIAL PRIMARY KEY,
+  member_id INT REFERENCES members(member_id) ON DELETE CASCADE,
+  card_image_url TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. TRIGGER FOR SEQUENTIAL MEMBER_ID AUTO-GENERATION (No duplicates, no skipped IDs)
+CREATE OR REPLACE FUNCTION set_member_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.member_id := COALESCE((SELECT MAX(member_id) FROM members), 0) + 1;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_set_member_id
+BEFORE INSERT ON members
+FOR EACH ROW
+EXECUTE FUNCTION set_member_id();
+
+-- 6. CREATE RESOLVED VIEW FOR JOINING NAMES IN THE FRONTEND
+CREATE OR REPLACE VIEW members_resolved AS
 SELECT 
-  p.id,
-  p.household_id,
-  p.name,
-  p.relationship,
-  p.is_head,
-  p.date_of_birth,
-  p.age,
-  p.aadhar_number,
-  p.mobile_number,
-  p.marital_status,
-  p.education,
-  p.employment_sector,
-  p.occupation,
-  p.traditional_occupation,
-  p.country,
-  p.state,
-  p.district,
-  p.taluk,
-  p.nagara,
-  p.ward,
-  p.pincode,
-  p.profile_image_url,
-  p.sequential_id,
-  p.created_at,
-  p.updated_at,
-  h.created_at AS household_created_at,
-  h.user_id AS household_user_id
-FROM persons p
-JOIN households h ON p.household_id = h.id;
+  m.id,
+  m.member_id,
+  m.full_name,
+  m.phone,
+  m.dob,
+  m.age,
+  m.country_id,
+  c.name AS country_name,
+  m.state_id,
+  s.name AS state_name,
+  m.district_id,
+  d.name AS district_name,
+  m.taluk_id,
+  t.name AS taluk_name,
+  m.ward_id,
+  w.name AS ward_name,
+  m.address,
+  m.photo_url,
+  m.created_at
+FROM members m
+LEFT JOIN countries c ON m.country_id = c.id
+LEFT JOIN states s ON m.state_id = s.id
+LEFT JOIN districts d ON m.district_id = d.id
+LEFT JOIN taluks t ON m.taluk_id = t.id
+LEFT JOIN wards w ON m.ward_id = w.id;
 
 -- 7. PERFORMANCE INDEXES
-CREATE INDEX idx_countries_name ON countries(name);
-CREATE INDEX idx_states_name ON states(name);
-CREATE INDEX idx_districts_name ON districts(name);
 CREATE INDEX idx_states_country_id ON states(country_id);
 CREATE INDEX idx_districts_state_id ON districts(state_id);
-CREATE INDEX idx_households_user_id ON households(user_id);
-CREATE INDEX idx_persons_household_id ON persons(household_id);
+CREATE INDEX idx_taluks_district_id ON taluks(district_id);
+CREATE INDEX idx_wards_taluk_id ON wards(taluk_id);
+CREATE INDEX idx_members_phone ON members(phone);
+CREATE INDEX idx_members_member_id ON members(member_id);
 
 -- 8. ROW LEVEL SECURITY (RLS) POLICIES
 -- Enable RLS
 ALTER TABLE countries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE states ENABLE ROW LEVEL SECURITY;
 ALTER TABLE districts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE enumerators ENABLE ROW LEVEL SECURITY;
-ALTER TABLE households ENABLE ROW LEVEL SECURITY;
-ALTER TABLE persons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE taluks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE member_cards ENABLE ROW LEVEL SECURITY;
 
--- Allow SELECT/INSERT/UPDATE (Publicly accessible for easy application testing)
-CREATE POLICY "Allow public select" ON countries FOR SELECT USING (true);
-CREATE POLICY "Allow public select" ON states FOR SELECT USING (true);
-CREATE POLICY "Allow public select" ON districts FOR SELECT USING (true);
+-- Create Public Access Policies
+CREATE POLICY "Allow public read country" ON countries FOR SELECT USING (true);
+CREATE POLICY "Allow public read state" ON states FOR SELECT USING (true);
+CREATE POLICY "Allow public read district" ON districts FOR SELECT USING (true);
+CREATE POLICY "Allow public read taluk" ON taluks FOR SELECT USING (true);
+CREATE POLICY "Allow public read ward" ON wards FOR SELECT USING (true);
 
-CREATE POLICY "Allow public write" ON enumerators FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public write" ON households FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public write" ON persons FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public write members" ON members FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public write member_cards" ON member_cards FOR ALL USING (true) WITH CHECK (true);
 
--- 9. SEED DATA FOR COUNTRIES, STATES, AND DISTRICTS
--- Insert Countries
-INSERT INTO countries (name) VALUES 
-('India'), ('USA'), ('UK'), ('Australia'), ('Canada'), ('China'), ('Brazil'), ('Argentina'), ('Japan')
-ON CONFLICT (name) DO NOTHING;
+-- 9. SEED DATA FOR GEOGRAPHICAL HIERARCHY
+-- Countries
+INSERT INTO countries (id, name) VALUES 
+(1, 'India'), 
+(2, 'USA'), 
+(3, 'UK')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
--- Insert States for India
-INSERT INTO states (country_id, name) VALUES
-((SELECT id FROM countries WHERE name='India'), 'Karnataka'),
-((SELECT id FROM countries WHERE name='India'), 'Maharashtra'),
-((SELECT id FROM countries WHERE name='India'), 'Tamil Nadu')
-ON CONFLICT DO NOTHING;
+-- States
+INSERT INTO states (id, country_id, name) VALUES
+(1, 1, 'Karnataka'),
+(2, 1, 'Maharashtra'),
+(3, 1, 'Tamil Nadu'),
+(4, 2, 'California'),
+(5, 2, 'New York'),
+(6, 3, 'England')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, country_id = EXCLUDED.country_id;
 
--- Insert Districts for Karnataka
-INSERT INTO districts (state_id, name) VALUES
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Bengaluru Urban'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Bengaluru Rural'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Mysuru'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Davangere'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Dharwad'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Shivamogga'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Belagavi'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Tumakuru'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Mandya'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Hassan'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Dakshina Kannada'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Udupi'),
-((SELECT id FROM states WHERE name='Karnataka' LIMIT 1), 'Uttara Kannada')
-ON CONFLICT DO NOTHING;
+-- Districts
+INSERT INTO districts (id, state_id, name) VALUES
+-- Karnataka
+(1, 1, 'Davangere'),
+(2, 1, 'Chitradurga'),
+(3, 1, 'Bangalore'),
+(4, 1, 'Mysore'),
+(5, 1, 'Hubli'),
+-- Maharashtra
+(6, 2, 'Mumbai'),
+(7, 2, 'Pune'),
+(8, 2, 'Nagpur'),
+-- Tamil Nadu
+(9, 3, 'Chennai'),
+(10, 3, 'Coimbatore'),
+-- California
+(11, 4, 'Los Angeles'),
+(12, 4, 'San Francisco'),
+-- England
+(13, 6, 'Westminster'),
+(14, 6, 'City of London')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, state_id = EXCLUDED.state_id;
 
--- Insert Districts for Maharashtra
-INSERT INTO districts (state_id, name) VALUES
-((SELECT id FROM states WHERE name='Maharashtra' LIMIT 1), 'Mumbai City'),
-((SELECT id FROM states WHERE name='Maharashtra' LIMIT 1), 'Pune'),
-((SELECT id FROM states WHERE name='Maharashtra' LIMIT 1), 'Nagpur')
-ON CONFLICT DO NOTHING;
+-- Taluks
+INSERT INTO taluks (id, district_id, name) VALUES
+-- Davangere
+(1, 1, 'Davangere Taluk'),
+(2, 1, 'Harihar Taluk'),
+(3, 1, 'Channagiri Taluk'),
+(4, 1, 'Jagalur Taluk'),
+(5, 1, 'Honnali Taluk'),
+-- Chitradurga
+(6, 2, 'Chitradurga Taluk'),
+(7, 2, 'Holalkere Taluk'),
+(8, 2, 'Hosadurga Taluk'),
+(9, 2, 'Hiriyur Taluk'),
+-- Bangalore
+(10, 3, 'Bangalore North'),
+(11, 3, 'Bangalore South'),
+(12, 3, 'Anekal'),
+-- Mysore
+(13, 4, 'Mysore Taluk'),
+(14, 4, 'Nanjangud Taluk'),
+-- Hubli
+(15, 5, 'Hubli Taluk'),
+(16, 5, 'Dharwad Taluk'),
+-- Mumbai
+(17, 6, 'Mumbai Central'),
+(18, 6, 'Andheri'),
+-- Pune
+(19, 7, 'Pune Central'),
+(20, 7, 'Haveli'),
+-- Nagpur
+(21, 8, 'Nagpur Urban'),
+(22, 8, 'Nagpur Rural'),
+-- Los Angeles
+(23, 11, 'LA City'),
+(24, 11, 'Santa Monica'),
+-- San Francisco
+(25, 12, 'SF City'),
+-- Westminster
+(26, 13, 'Westminster Central'),
+-- City of London
+(27, 14, 'London Central')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, district_id = EXCLUDED.district_id;
 
--- Insert Districts for Tamil Nadu
-INSERT INTO districts (state_id, name) VALUES
-((SELECT id FROM states WHERE name='Tamil Nadu' LIMIT 1), 'Chennai'),
-((SELECT id FROM states WHERE name='Tamil Nadu' LIMIT 1), 'Coimbatore'),
-((SELECT id FROM states WHERE name='Tamil Nadu' LIMIT 1), 'Madurai')
-ON CONFLICT DO NOTHING;
+-- Seed Wards for each taluk dynamically using a PL/pgSQL block
+DO $$
+DECLARE
+  t_row RECORD;
+BEGIN
+  -- Clear existing wards first to prevent duplicate seeds
+  TRUNCATE TABLE wards CASCADE;
+  
+  FOR t_row IN SELECT id FROM taluks LOOP
+    INSERT INTO wards (taluk_id, name) VALUES
+    (t_row.id, 'Ward 1'),
+    (t_row.id, 'Ward 2'),
+    (t_row.id, 'Ward 3'),
+    (t_row.id, 'Ward 4'),
+    (t_row.id, 'Ward 5');
+  END LOOP;
+END $$;
