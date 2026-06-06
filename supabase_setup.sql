@@ -1,4 +1,4 @@
--- COMPLETE REBUILD SUPABASE SETUP SCRIPT
+-- COMPLETE MULTI-MEMBER REBUILD SUPABASE SETUP SCRIPT
 -- Run this entire script in your Supabase SQL Editor to configure all tables, triggers, views, and seed location data.
 
 -- 1. DROP EXISTING TABLES AND VIEWS (Clean Slate)
@@ -41,20 +41,29 @@ CREATE TABLE wards (
   name TEXT NOT NULL
 );
 
--- 3. CREATE MEMBERS TABLE
+-- 3. CREATE MEMBERS TABLE (Extended to support households & complete vachana workflow)
 CREATE TABLE members (
   id SERIAL PRIMARY KEY,
   member_id INT UNIQUE, -- Sequential generated ID: 1, 2, 3...
+  household_id UUID NOT NULL, -- Groups members of the same household registration
+  is_head BOOLEAN DEFAULT FALSE,
+  relationship TEXT,
   full_name TEXT NOT NULL,
   phone TEXT NOT NULL,
   dob DATE NOT NULL,
   age INT NOT NULL,
+  marital_status TEXT,
+  education TEXT,
+  employment_sector TEXT,
+  occupation TEXT,
+  traditional_occupation TEXT,
   country_id INT REFERENCES countries(id) ON DELETE SET NULL,
   state_id INT REFERENCES states(id) ON DELETE SET NULL,
   district_id INT REFERENCES districts(id) ON DELETE SET NULL,
   taluk_id INT REFERENCES taluks(id) ON DELETE SET NULL,
   ward_id INT REFERENCES wards(id) ON DELETE SET NULL,
   address TEXT NOT NULL,
+  pincode TEXT,
   photo_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -86,10 +95,18 @@ CREATE OR REPLACE VIEW members_resolved AS
 SELECT 
   m.id,
   m.member_id,
+  m.household_id,
+  m.is_head,
+  m.relationship,
   m.full_name,
   m.phone,
   m.dob,
   m.age,
+  m.marital_status,
+  m.education,
+  m.employment_sector,
+  m.occupation,
+  m.traditional_occupation,
   m.country_id,
   c.name AS country_name,
   m.state_id,
@@ -101,6 +118,7 @@ SELECT
   m.ward_id,
   w.name AS ward_name,
   m.address,
+  m.pincode,
   m.photo_url,
   m.created_at
 FROM members m
@@ -116,6 +134,7 @@ CREATE INDEX idx_districts_state_id ON districts(state_id);
 CREATE INDEX idx_taluks_district_id ON taluks(district_id);
 CREATE INDEX idx_wards_taluk_id ON wards(taluk_id);
 CREATE INDEX idx_members_phone ON members(phone);
+CREATE INDEX idx_members_household_id ON members(household_id);
 CREATE INDEX idx_members_member_id ON members(member_id);
 
 -- 8. ROW LEVEL SECURITY (RLS) POLICIES
@@ -182,26 +201,26 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, state_id = EXCLUDED.state_i
 -- Taluks
 INSERT INTO taluks (id, district_id, name) VALUES
 -- Davangere
-(1, 1, 'Davangere Taluk'),
-(2, 1, 'Harihar Taluk'),
-(3, 1, 'Channagiri Taluk'),
-(4, 1, 'Jagalur Taluk'),
-(5, 1, 'Honnali Taluk'),
+(1, 1, 'Davangere'),
+(2, 1, 'Harihar'),
+(3, 1, 'Channagiri'),
+(4, 1, 'Jagalur'),
+(5, 1, 'Honnali'),
 -- Chitradurga
-(6, 2, 'Chitradurga Taluk'),
-(7, 2, 'Holalkere Taluk'),
-(8, 2, 'Hosadurga Taluk'),
-(9, 2, 'Hiriyur Taluk'),
+(6, 2, 'Chitradurga'),
+(7, 2, 'Holalkere'),
+(8, 2, 'Hosadurga'),
+(9, 2, 'Hiriyur'),
 -- Bangalore
 (10, 3, 'Bangalore North'),
 (11, 3, 'Bangalore South'),
 (12, 3, 'Anekal'),
 -- Mysore
-(13, 4, 'Mysore Taluk'),
-(14, 4, 'Nanjangud Taluk'),
+(13, 4, 'Mysore'),
+(14, 4, 'Nanjangud'),
 -- Hubli
-(15, 5, 'Hubli Taluk'),
-(16, 5, 'Dharwad Taluk'),
+(15, 5, 'Hubli'),
+(16, 5, 'Dharwad'),
 -- Mumbai
 (17, 6, 'Mumbai Central'),
 (18, 6, 'Andheri'),

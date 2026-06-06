@@ -2,26 +2,21 @@
    TARALABALU SHISHYA MANDALI — Application Logic
    ===================================================== */
 
-// ── SUPABASE CONFIGURATION ───────────────────────────
 const SUPABASE_URL = 'https://ysgzawhxxovcatlhcbrb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZ3phd2h4eG92Y2F0bGhjYnJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2OTQyOTAsImV4cCI6MjA5NjI3MDI5MH0.BOpQt3pA5P4Oj2YE2sKTHY2Gy0_UDHqTOqJzz00tp0Y';
 
 let supabaseClient = null;
 
-// Auth credentials
+// OTP Constants
 const USER_OTP = '123456';
 const ADMIN_OTP = '654321';
 
-// Global state variables
+// App State
 let currentUserPhone = '';
 let currentUserRole = '';
 let allMembers = [];
 let filteredMembers = [];
 let countriesList = [];
-let statesList = [];
-let districtsList = [];
-let taluksList = [];
-let wardsList = [];
 
 // Dynamic Vachana list for the Welcome tab
 const VACHANAS_DATA = [
@@ -48,7 +43,7 @@ const VACHANAS_DATA = [
 ];
 
 // ── INITIALIZATION ───────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initSupabase();
   setupEventListeners();
   checkSession();
@@ -58,18 +53,18 @@ function initSupabase() {
   try {
     if (window.supabase) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log('✅ Supabase Client initialized successfully.');
+      console.log('✅ Supabase connected.');
     } else {
       console.error('❌ Supabase SDK not loaded.');
-      showToast('Supabase SDK missing. Working offline.', 'error');
+      showToast('Supabase SDK not loaded. Working offline.', 'error');
     }
   } catch (error) {
-    console.error('Supabase initialization failed:', error);
+    console.error('Supabase init error:', error);
   }
 }
 
 function setupEventListeners() {
-  // Login phone validator
+  // Phone input formatting and button validator
   const phoneInput = document.getElementById('phone-input');
   if (phoneInput) {
     phoneInput.addEventListener('input', () => {
@@ -82,7 +77,7 @@ function setupEventListeners() {
     });
   }
 
-  // OTP validator
+  // OTP format validator
   const otpInput = document.getElementById('otp-input');
   if (otpInput) {
     otpInput.addEventListener('input', () => {
@@ -101,7 +96,7 @@ function checkSession() {
       currentUserPhone = session.phone;
       currentUserRole = session.role;
       
-      // Bypass splash screen and go straight to dashboards
+      // Hide splash & login, show dashboards
       if (splashScreen) splashScreen.classList.add('hidden');
       document.getElementById('login-page').classList.add('hidden');
       
@@ -112,12 +107,12 @@ function checkSession() {
       }
       return;
     } catch (e) {
-      console.error('Session restored error:', e);
+      console.error('Failed to parse session:', e);
       localStorage.removeItem('tsm_session');
     }
   }
 
-  // Run Splash Screen sequence (2.5 seconds wait)
+  // Splash Screen timeout sequence (2.5 seconds)
   setTimeout(() => {
     if (splashScreen) {
       splashScreen.style.transition = 'opacity 0.5s ease';
@@ -136,7 +131,7 @@ function sendOTP() {
     document.getElementById('login-phone-section').classList.add('hidden');
     document.getElementById('login-otp-section').classList.remove('hidden');
     document.getElementById('otp-input').focus();
-    showToast('OTP sent successfully (try 123456 or 654321)', 'info');
+    showToast('OTP sent (use 123456 = User, 654321 = Admin)', 'info');
   }
 }
 
@@ -156,13 +151,11 @@ function verifyOTP() {
     currentUserPhone = phone;
     currentUserRole = otp === USER_OTP ? 'user' : 'admin';
     
-    // Save session details
     localStorage.setItem('tsm_session', JSON.stringify({
       phone: currentUserPhone,
       role: currentUserRole
     }));
     
-    // Page Transitions
     document.getElementById('login-page').classList.add('hidden');
     
     if (currentUserRole === 'admin') {
@@ -175,44 +168,22 @@ function verifyOTP() {
   }
 }
 
-function confirmLogout() {
-  if (confirm('Are you sure you want to logout?')) {
-    localStorage.removeItem('tsm_session');
-    currentUserPhone = '';
-    currentUserRole = '';
-    
-    // Hide portals, show login
-    document.getElementById('user-portal').classList.add('hidden');
-    document.getElementById('admin-portal').classList.add('hidden');
-    
-    // Clear inputs on login page
-    document.getElementById('phone-input').value = '';
-    document.getElementById('otp-input').value = '';
-    document.getElementById('login-otp-section').classList.add('hidden');
-    document.getElementById('login-phone-section').classList.remove('hidden');
-    
-    document.getElementById('login-page').classList.remove('hidden');
-    showToast('Logged out successfully', 'info');
-  }
-}
-
-// ── USER PORTAL & NAVIGATION ─────────────────────────
+// ── USER PORTAL & FORMS ──────────────────────────────
 async function showUserPortal() {
   document.getElementById('user-portal').classList.remove('hidden');
   switchUserTab('fill-form');
   
-  // Load countries dynamically
-  await loadGeographicDropdowns();
+  // Load geographical datasets
+  await loadCountriesDropdown();
   
-  // Restore auto-saved form data
-  restoreAutosave();
+  // Restore autosaved data
+  await restoreAutosaveForm();
   
   // Render vachanas list
   renderWelcomeVachanas();
 }
 
 function switchUserTab(tabName) {
-  // Reset active tabs navigation
   document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
   
@@ -229,10 +200,9 @@ function switchUserTab(tabName) {
   }
 }
 
-// ── DYNAMIC CASCADING GEOGRAPHIC DROPDOWNS ───────────
-async function loadGeographicDropdowns() {
+// Load countries list from Database
+async function loadCountriesDropdown() {
   if (!supabaseClient) return;
-  
   try {
     const { data, error } = await supabaseClient
       .from('countries')
@@ -242,145 +212,335 @@ async function loadGeographicDropdowns() {
     if (error) throw error;
     countriesList = data || [];
     
-    // Populate form and admin filters
-    populateDropdown('form-country', countriesList);
+    // Populate Head card country selection list & Admin Filter
+    populateDropdown('head-country', countriesList);
     populateDropdown('edit-country', countriesList);
     populateDropdown('admin-filter-country', countriesList);
   } catch (err) {
-    console.error('Failed to load countries:', err);
+    console.error('Failed to fetch countries:', err);
   }
 }
 
-// Cascades handlers (Registration Form)
-async function onCountryChanged() {
-  const countryId = document.getElementById('form-country').value;
-  const stateSelect = document.getElementById('form-state');
-  const districtSelect = document.getElementById('form-district');
-  const talukSelect = document.getElementById('form-taluk');
-  const wardSelect = document.getElementById('form-ward');
-  
-  // Clear and disable downstream dropdowns
-  resetDropdown(stateSelect, 'Select State');
-  resetDropdown(districtSelect, 'Select District');
-  resetDropdown(talukSelect, 'Select Taluk');
-  resetDropdown(wardSelect, 'Select Ward');
-  
-  if (!countryId || !supabaseClient) {
-    saveAutosave();
-    return;
-  }
-  
-  try {
-    const { data, error } = await supabaseClient
-      .from('states')
-      .select('*')
-      .eq('country_id', countryId)
-      .order('name', { ascending: true });
-      
-    if (error) throw error;
-    statesList = data || [];
-    populateDropdown('form-state', statesList);
-    stateSelect.disabled = false;
-  } catch (err) {
-    console.error('Failed to load states:', err);
-  }
-  saveAutosave();
+// ── DYNAMIC FAMILY MEMBER CARDS GENERATION ───────────
+function onExtraMembersCountChanged() {
+  const countSelect = document.getElementById('extra-members-count');
+  const count = parseInt(countSelect.value);
+  renderFamilyMembers(count);
+  saveAutosaveForm();
 }
 
-async function onStateChanged() {
-  const stateId = document.getElementById('form-state').value;
-  const districtSelect = document.getElementById('form-district');
-  const talukSelect = document.getElementById('form-taluk');
-  const wardSelect = document.getElementById('form-ward');
+function renderFamilyMembers(count) {
+  const container = document.getElementById('family-members-container');
+  container.innerHTML = '';
   
-  resetDropdown(districtSelect, 'Select District');
-  resetDropdown(talukSelect, 'Select Taluk');
-  resetDropdown(wardSelect, 'Select Ward');
-  
-  if (!stateId || !supabaseClient) {
-    saveAutosave();
-    return;
+  for (let i = 0; i < count; i++) {
+    const cardHtml = `
+      <div class="form-card" id="member-card-${i}">
+        <div class="form-card-header" onclick="toggleCardCollapse('member-${i}')">
+          <div class="card-left-header">
+            <div class="card-avatar member-avatar">👤</div>
+            <div class="card-header-titles">
+              <h4 id="member-header-name-${i}">Member ${i + 1}</h4>
+              <p id="member-header-sub-${i}">Family Member Details</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button type="button" class="btn-delete-card" onclick="deleteFamilyMemberCard(${i})" title="Remove Member">×</button>
+            <div class="card-collapse-icon" id="member-collapse-icon-${i}">▲</div>
+          </div>
+        </div>
+        
+        <div class="form-card-body" id="member-card-body-${i}">
+          <!-- Photo Upload -->
+          <div class="photo-upload-section">
+            <div class="photo-preview-container" onclick="triggerPhotoSelect('member-${i}')">
+              <img id="member-photo-preview-${i}" src="" class="hidden" alt="Profile Preview">
+              <div id="member-photo-placeholder-${i}" class="photo-placeholder">
+                <span class="placeholder-icon">📸</span>
+                <span class="placeholder-text">Add Profile Photo</span>
+              </div>
+            </div>
+            <input type="file" id="member-photo-input-${i}" accept="image/*" class="hidden" onchange="previewMemberPhoto('member-${i}', event)">
+            <p class="field-hint">Tap circle to choose profile image</p>
+          </div>
+
+          <!-- Personal Info -->
+          <h4 class="form-group-title">Personal Info</h4>
+          <div class="input-field">
+            <label for="member-fullname-${i}">Name / ಹೆಸರು *</label>
+            <input type="text" id="member-fullname-${i}" required oninput="updateMemberHeaderName(${i})">
+          </div>
+
+          <div class="form-row">
+            <div class="input-field width-50">
+              <label for="member-relationship-${i}">Relationship / ಸಂಬಂಧ *</label>
+              <select id="member-relationship-${i}" required onchange="saveAutosaveForm()">
+                <option value="Spouse / ಪತ್ನಿ/ಪತಿ">Spouse / ಪತ್ನಿ/ಪತಿ</option>
+                <option value="Son / ಮಗ">Son / ಮಗ</option>
+                <option value="Daughter / ಮಗಳು">Daughter / ಮಗಳು</option>
+                <option value="Father / ತಂದೆ">Father / ತಂದೆ</option>
+                <option value="Mother / ತಾಯಿ">Mother / ತಾಯಿ</option>
+              </select>
+            </div>
+            <div class="input-field width-50">
+              <label for="member-marital-${i}">Marital Status *</label>
+              <select id="member-marital-${i}" required onchange="saveAutosaveForm()">
+                <option value="Single / ಅವಿವಾಹಿತ">Single / ಅವಿವಾಹಿತ</option>
+                <option value="Married / ವಿವಾಹಿತ">Married / ವಿವಾಹಿತ</option>
+                <option value="Divorced / ವಿಚ್ಛೇದಿತ">Divorced / ವಿಚ್ಛೇದಿತ</option>
+                <option value="Widowed / ವಿಧವೆ/ವಿಧುರ">Widowed / ವಿಧವೆ/ವಿಧುರ</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="input-field width-50">
+              <label for="member-dob-${i}">Date of Birth / ಜನ್ಮ ದಿನಾಂಕ *</label>
+              <input type="date" id="member-dob-${i}" required onchange="onDobChanged('member-${i}')">
+            </div>
+            <div class="input-field width-50">
+              <label for="member-age-${i}">Age / ವಯಸ್ಸು</label>
+              <input type="text" id="member-age-${i}" readonly placeholder="Auto-calculated">
+            </div>
+          </div>
+
+          <div class="input-field">
+            <label for="member-aadhar-${i}">Aadhar Number / ಆಧಾರ್ ಸಂಖ್ಯೆ</label>
+            <input type="text" id="member-aadhar-${i}" placeholder="0000 0000 0000" maxlength="14" oninput="formatAadharInput('member-${i}')">
+          </div>
+
+          <div class="input-field text-phone">
+            <label for="member-phone-${i}">Mobile Number / ಮೊಬೈಲ್ ಸಂಖ್ಯೆ</label>
+            <input type="tel" id="member-phone-${i}" maxlength="10" oninput="saveAutosaveForm()">
+          </div>
+
+          <div class="input-field">
+            <label for="member-education-${i}">Education / ಶಿಕ್ಷಣ</label>
+            <input type="text" id="member-education-${i}" oninput="saveAutosaveForm()">
+          </div>
+
+          <div class="form-row">
+            <div class="input-field width-50">
+              <label for="member-sector-${i}">Employment Sector</label>
+              <select id="member-sector-${i}" onchange="saveAutosaveForm()">
+                <option value="Government / ಸರ್ಕಾರಿ">Government / ಸರ್ಕಾರಿ</option>
+                <option value="Private / ಖಾಸಗಿ">Private / ಖಾಸಗಿ</option>
+                <option value="Self / ಸ್ವಯಂ">Self / ಸ್ವಯಂ</option>
+                <option value="Student / ವಿದ್ಯಾರ್ಥಿ">Student / ವಿದ್ಯಾರ್ಥಿ</option>
+                <option value="None / ಇಲ್ಲ">None / ಇಲ್ಲ</option>
+              </select>
+            </div>
+            <div class="input-field width-50">
+              <label for="member-occupation-${i}">Occupation / ಉದ್ಯೋಗ</label>
+              <input type="text" id="member-occupation-${i}" oninput="saveAutosaveForm()">
+            </div>
+          </div>
+
+          <div class="input-field">
+            <label for="member-traditional-occ-${i}">Traditional Occupation / ಸಾಂಪ್ರದಾಯಿಕ ಉದ್ಯೋಗ</label>
+            <input type="text" id="member-traditional-occ-${i}" oninput="saveAutosaveForm()">
+          </div>
+
+          <!-- Location Dropdowns -->
+          <h4 class="form-group-title">Address / ವಿಳಾಸ</h4>
+          
+          <div class="input-field">
+            <label for="member-country-${i}">Country / ದೇಶ *</label>
+            <select id="member-country-${i}" required onchange="onCascadeChange('member-${i}', 'country')">
+              <option value="">Select Country</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="input-field width-50">
+              <label for="member-state-${i}">State / ರಾಜ್ಯ *</label>
+              <select id="member-state-${i}" required onchange="onCascadeChange('member-${i}', 'state')" disabled>
+                <option value="">Select State</option>
+              </select>
+            </div>
+            <div class="input-field width-50">
+              <label for="member-district-${i}">District / ಜಿಲ್ಲೆ *</label>
+              <select id="member-district-${i}" required onchange="onCascadeChange('member-${i}', 'district')" disabled>
+                <option value="">Select District</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="input-field width-50">
+              <label for="member-taluk-${i}">Taluk / ತಾಲ್ಲೂಕು *</label>
+              <select id="member-taluk-${i}" required onchange="onCascadeChange('member-${i}', 'taluk')" disabled>
+                <option value="">Select Taluk</option>
+              </select>
+            </div>
+            <div class="input-field width-50">
+              <label for="member-ward-${i}">Ward / ವಾರ್ಡ್ / Nagara *</label>
+              <select id="member-ward-${i}" required onchange="saveAutosaveForm()" disabled>
+                <option value="">Select Ward</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="input-field width-50">
+              <label for="member-pincode-${i}">Pincode *</label>
+              <input type="text" id="member-pincode-${i}" maxlength="6" required oninput="onPincodeChange('member-${i}')">
+            </div>
+          </div>
+
+          <div class="input-field">
+            <label for="member-address-${i}">Full Address / ಪೂರ್ಣ ವಿಳಾಸ *</label>
+            <textarea id="member-address-${i}" rows="3" required oninput="saveAutosaveForm()"></textarea>
+          </div>
+        </div>
+      </div>
+    `;
+    container.insertAdjacentHTML('beforeend', cardHtml);
+    populateDropdown(`member-country-${i}`, countriesList);
   }
-  
-  try {
-    const { data, error } = await supabaseClient
-      .from('districts')
-      .select('*')
-      .eq('state_id', stateId)
-      .order('name', { ascending: true });
-      
-    if (error) throw error;
-    districtsList = data || [];
-    populateDropdown('form-district', districtsList);
-    districtSelect.disabled = false;
-  } catch (err) {
-    console.error('Failed to load districts:', err);
-  }
-  saveAutosave();
 }
 
-async function onDistrictChanged() {
-  const districtId = document.getElementById('form-district').value;
-  const talukSelect = document.getElementById('form-taluk');
-  const wardSelect = document.getElementById('form-ward');
-  
-  resetDropdown(talukSelect, 'Select Taluk');
-  resetDropdown(wardSelect, 'Select Ward');
-  
-  if (!districtId || !supabaseClient) {
-    saveAutosave();
-    return;
-  }
-  
-  try {
-    const { data, error } = await supabaseClient
-      .from('taluks')
-      .select('*')
-      .eq('district_id', districtId)
-      .order('name', { ascending: true });
-      
-    if (error) throw error;
-    taluksList = data || [];
-    populateDropdown('form-taluk', taluksList);
-    talukSelect.disabled = false;
-  } catch (err) {
-    console.error('Failed to load taluks:', err);
-  }
-  saveAutosave();
+function updateMemberHeaderName(index) {
+  const val = document.getElementById(`member-fullname-${index}`).value.trim();
+  const title = document.getElementById(`member-header-name-${index}`);
+  title.textContent = val || `Member ${index + 1}`;
+  saveAutosaveForm();
 }
 
-async function onTalukChanged() {
-  const talukId = document.getElementById('form-taluk').value;
-  const wardSelect = document.getElementById('form-ward');
-  
-  resetDropdown(wardSelect, 'Select Ward');
-  
-  if (!talukId || !supabaseClient) {
-    saveAutosave();
-    return;
+function deleteFamilyMemberCard(index) {
+  event.stopPropagation(); // Stop collapse click
+  if (confirm(`Remove Member ${index + 1}?`)) {
+    const countSelect = document.getElementById('extra-members-count');
+    let count = parseInt(countSelect.value);
+    
+    // We remove the card and decrement selection
+    const card = document.getElementById(`member-card-${index}`);
+    if (card) {
+      card.remove();
+    }
+    
+    // Read state from currently rendered DOM to shift index positions
+    const container = document.getElementById('family-members-container');
+    const cards = container.querySelectorAll('.form-card');
+    
+    // Re-render remaining cards with updated indexes to maintain integrity
+    const savedData = serializeFormState();
+    savedData.members.splice(index, 1);
+    savedData.membersCount = savedData.members.length;
+    
+    countSelect.value = savedData.membersCount;
+    restoreSerializedState(savedData);
   }
-  
-  try {
-    const { data, error } = await supabaseClient
-      .from('wards')
-      .select('*')
-      .eq('taluk_id', talukId)
-      .order('name', { ascending: true });
-      
-    if (error) throw error;
-    wardsList = data || [];
-    populateDropdown('form-ward', wardsList);
-    wardSelect.disabled = false;
-  } catch (err) {
-    console.error('Failed to load wards:', err);
-  }
-  saveAutosave();
 }
 
-// ── FORM AUTO-SAVE & AUTO-AGE CALCULATION ───────────
-function calculateAgeAndAutosave() {
-  const dobVal = document.getElementById('form-dob').value;
-  const ageInput = document.getElementById('form-age');
+// Expandable / Collapsible cards function
+function toggleCardCollapse(cardPrefix) {
+  const body = document.getElementById(`${cardPrefix}-card-body`);
+  const icon = document.getElementById(`${cardPrefix}-collapse-icon`);
+  
+  if (body.classList.contains('hidden')) {
+    body.classList.remove('hidden');
+    icon.textContent = '▲';
+  } else {
+    body.classList.add('hidden');
+    icon.textContent = '▼';
+  }
+}
+
+// File Picker Trigger
+function triggerPhotoSelect(cardPrefix) {
+  document.getElementById(`${cardPrefix}-photo-input`).click();
+}
+
+function previewMemberPhoto(cardPrefix, event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const preview = document.getElementById(`${cardPrefix}-photo-preview`);
+    const placeholder = document.getElementById(`${cardPrefix}-photo-placeholder`);
+    
+    preview.src = e.target.result;
+    preview.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    
+    saveAutosaveForm();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── CASCADES SYSTEM FOR DYNAMIC DROPDOWNS ────────────
+async function onCascadeChange(cardPrefix, level) {
+  if (!supabaseClient) return;
+  
+  const countryId = document.getElementById(`${cardPrefix}-country`).value;
+  const stateSelect = document.getElementById(`${cardPrefix}-state`);
+  const districtSelect = document.getElementById(`${cardPrefix}-district`);
+  const talukSelect = document.getElementById(`${cardPrefix}-taluk`);
+  const wardSelect = document.getElementById(`${cardPrefix}-ward`);
+  
+  if (level === 'country') {
+    resetDropdown(stateSelect, 'Select State');
+    resetDropdown(districtSelect, 'Select District');
+    resetDropdown(talukSelect, 'Select Taluk');
+    resetDropdown(wardSelect, 'Select Ward');
+    if (!countryId) { saveAutosaveForm(); return; }
+    
+    try {
+      const { data, error } = await supabaseClient.from('states').select('*').eq('country_id', countryId).order('name', { ascending: true });
+      if (error) throw error;
+      populateDropdown(`${cardPrefix}-state`, data || []);
+      stateSelect.disabled = false;
+    } catch (err) { console.error(err); }
+    
+  } else if (level === 'state') {
+    const stateId = stateSelect.value;
+    resetDropdown(districtSelect, 'Select District');
+    resetDropdown(talukSelect, 'Select Taluk');
+    resetDropdown(wardSelect, 'Select Ward');
+    if (!stateId) { saveAutosaveForm(); return; }
+    
+    try {
+      const { data, error } = await supabaseClient.from('districts').select('*').eq('state_id', stateId).order('name', { ascending: true });
+      if (error) throw error;
+      populateDropdown(`${cardPrefix}-district`, data || []);
+      districtSelect.disabled = false;
+    } catch (err) { console.error(err); }
+    
+  } else if (level === 'district') {
+    const districtId = districtSelect.value;
+    resetDropdown(talukSelect, 'Select Taluk');
+    resetDropdown(wardSelect, 'Select Ward');
+    if (!districtId) { saveAutosaveForm(); return; }
+    
+    try {
+      const { data, error } = await supabaseClient.from('taluks').select('*').eq('district_id', districtId).order('name', { ascending: true });
+      if (error) throw error;
+      populateDropdown(`${cardPrefix}-taluk`, data || []);
+      talukSelect.disabled = false;
+    } catch (err) { console.error(err); }
+    
+  } else if (level === 'taluk') {
+    const talukId = talukSelect.value;
+    resetDropdown(wardSelect, 'Select Ward');
+    if (!talukId) { saveAutosaveForm(); return; }
+    
+    try {
+      const { data, error } = await supabaseClient.from('wards').select('*').eq('taluk_id', talukId).order('name', { ascending: true });
+      if (error) throw error;
+      populateDropdown(`${cardPrefix}-ward`, data || []);
+      wardSelect.disabled = false;
+    } catch (err) { console.error(err); }
+  }
+  
+  saveAutosaveForm();
+}
+
+// DOB listener programmatically calculates Age
+function onDobChanged(cardPrefix) {
+  const dobVal = document.getElementById(`${cardPrefix}-dob`).value;
+  const ageInput = document.getElementById(`${cardPrefix}-age`);
   
   if (dobVal) {
     const dob = new Date(dobVal);
@@ -391,258 +551,461 @@ function calculateAgeAndAutosave() {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
       calculatedAge--;
     }
-    
     ageInput.value = calculatedAge >= 0 ? calculatedAge : 0;
   } else {
     ageInput.value = '';
   }
-  saveAutosave();
+  saveAutosaveForm();
 }
 
-function triggerPhotoSelect() {
-  document.getElementById('photo-file-input').click();
-}
+// Pincode Autocomplete programmatically sets cascades
+const PINCODE_LOOKUP = {
+  '577001': { countryId: '1', stateId: '1', districtId: '1', talukId: '1' },
+  '577002': { countryId: '1', stateId: '1', districtId: '1', talukId: '1' },
+  '577527': { countryId: '1', stateId: '1', districtId: '2', talukId: '6' }
+};
 
-function previewPhoto(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const preview = document.getElementById('photo-preview');
-    const placeholder = document.getElementById('photo-placeholder');
+async function onPincodeChange(cardPrefix) {
+  const pincode = document.getElementById(`${cardPrefix}-pincode`).value.trim();
+  if (pincode.length === 6 && PINCODE_LOOKUP[pincode]) {
+    const lookup = PINCODE_LOOKUP[pincode];
+    showLoading(true, 'Resolving locations from Pincode...');
     
-    preview.src = e.target.result;
-    preview.classList.remove('hidden');
-    placeholder.classList.add('hidden');
-    
-    saveAutosave();
-  };
-  reader.readAsDataURL(file);
+    try {
+      document.getElementById(`${cardPrefix}-country`).value = lookup.countryId;
+      await onCascadeChange(cardPrefix, 'country');
+      
+      document.getElementById(`${cardPrefix}-state`).value = lookup.stateId;
+      await onCascadeChange(cardPrefix, 'state');
+      
+      document.getElementById(`${cardPrefix}-district`).value = lookup.districtId;
+      await onCascadeChange(cardPrefix, 'district');
+      
+      document.getElementById(`${cardPrefix}-taluk`).value = lookup.talukId;
+      await onCascadeChange(cardPrefix, 'taluk');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      showLoading(false);
+    }
+  }
+  saveAutosaveForm();
 }
 
-// LocalStorage Persistence
-function saveAutosave() {
-  const preview = document.getElementById('photo-preview');
-  const autosaveData = {
-    fullname: document.getElementById('form-fullname').value,
-    phone: document.getElementById('form-phone').value,
-    dob: document.getElementById('form-dob').value,
-    age: document.getElementById('form-age').value,
-    country: document.getElementById('form-country').value,
-    state: document.getElementById('form-state').value,
-    district: document.getElementById('form-district').value,
-    taluk: document.getElementById('form-taluk').value,
-    ward: document.getElementById('form-ward').value,
-    address: document.getElementById('form-address').value,
-    photoBase64: preview.classList.contains('hidden') ? null : preview.src
+function formatAadharInput(cardPrefix) {
+  const input = document.getElementById(`${cardPrefix}-aadhar`);
+  let val = input.value.replace(/\D/g, '');
+  
+  // Format with spaces
+  let formatted = '';
+  for (let i = 0; i < val.length; i++) {
+    formatted += val[i];
+    if ((i + 1) % 4 === 0 && (i + 1) !== 12 && (i + 1) !== val.length) {
+      formatted += ' ';
+    }
+  }
+  input.value = formatted;
+  saveAutosaveForm();
+}
+
+// ── SERIALIZATION AND AUTO-SAVE ──────────────────────
+function serializeFormState() {
+  const extraCount = parseInt(document.getElementById('extra-members-count').value);
+  const state = {
+    membersCount: extraCount,
+    head: {
+      fullname: document.getElementById('head-fullname').value,
+      phone: document.getElementById('head-phone').value,
+      dob: document.getElementById('head-dob').value,
+      age: document.getElementById('head-age').value,
+      aadhar: document.getElementById('head-aadhar').value,
+      education: document.getElementById('head-education').value,
+      marital: document.getElementById('head-marital').value,
+      sector: document.getElementById('head-sector').value,
+      occupation: document.getElementById('head-occupation').value,
+      traditionalOcc: document.getElementById('head-traditional-occ').value,
+      country: document.getElementById('head-country').value,
+      state: document.getElementById('head-state').value,
+      district: document.getElementById('head-district').value,
+      taluk: document.getElementById('head-taluk').value,
+      ward: document.getElementById('head-ward').value,
+      pincode: document.getElementById('head-pincode').value,
+      address: document.getElementById('head-address').value,
+      photoBase64: document.getElementById('head-photo-preview').classList.contains('hidden') ? null : document.getElementById('head-photo-preview').src
+    },
+    members: []
   };
   
-  localStorage.setItem('tsm_form_autosave', JSON.stringify(autosaveData));
+  for (let i = 0; i < extraCount; i++) {
+    // If elements are present in DOM
+    const cardBody = document.getElementById(`member-card-body-${i}`);
+    if (cardBody) {
+      state.members.push({
+        fullname: document.getElementById(`member-fullname-${i}`).value,
+        phone: document.getElementById(`member-phone-${i}`).value,
+        dob: document.getElementById(`member-dob-${i}`).value,
+        age: document.getElementById(`member-age-${i}`).value,
+        aadhar: document.getElementById(`member-aadhar-${i}`).value,
+        relationship: document.getElementById(`member-relationship-${i}`).value,
+        education: document.getElementById(`member-education-${i}`).value,
+        marital: document.getElementById(`member-marital-${i}`).value,
+        sector: document.getElementById(`member-sector-${i}`).value,
+        occupation: document.getElementById(`member-occupation-${i}`).value,
+        traditionalOcc: document.getElementById(`member-traditional-occ-${i}`).value,
+        country: document.getElementById(`member-country-${i}`).value,
+        state: document.getElementById(`member-state-${i}`).value,
+        district: document.getElementById(`member-district-${i}`).value,
+        taluk: document.getElementById(`member-taluk-${i}`).value,
+        ward: document.getElementById(`member-ward-${i}`).value,
+        pincode: document.getElementById(`member-pincode-${i}`).value,
+        address: document.getElementById(`member-address-${i}`).value,
+        photoBase64: document.getElementById(`member-photo-preview-${i}`).classList.contains('hidden') ? null : document.getElementById(`member-photo-preview-${i}`).src
+      });
+    }
+  }
+  return state;
 }
 
-async function restoreAutosave() {
-  const savedDataStr = localStorage.getItem('tsm_form_autosave');
+function saveAutosaveForm() {
+  const state = serializeFormState();
+  localStorage.setItem('tsm_multi_autosave', JSON.stringify(state));
+}
+
+async function restoreAutosaveForm() {
+  const savedDataStr = localStorage.getItem('tsm_multi_autosave');
   if (!savedDataStr) return;
   
   try {
-    const data = JSON.parse(savedDataStr);
+    const state = JSON.parse(savedDataStr);
+    await restoreSerializedState(state);
+  } catch (error) {
+    console.error('Autosave restoration failed:', error);
+  }
+}
+
+async function restoreSerializedState(state) {
+  showLoading(true, 'Restoring your changes...');
+  
+  document.getElementById('extra-members-count').value = state.membersCount;
+  renderFamilyMembers(state.membersCount);
+  
+  // 1. Restore Head
+  const h = state.head;
+  document.getElementById('head-fullname').value = h.fullname || '';
+  document.getElementById('head-phone').value = h.phone || '';
+  document.getElementById('head-dob').value = h.dob || '';
+  document.getElementById('head-age').value = h.age || '';
+  document.getElementById('head-aadhar').value = h.aadhar || '';
+  document.getElementById('head-education').value = h.education || '';
+  document.getElementById('head-marital').value = h.marital || 'Single / ಅವಿವಾಹಿತ';
+  document.getElementById('head-sector').value = h.sector || 'Government / ಸರ್ಕಾರಿ';
+  document.getElementById('head-occupation').value = h.occupation || '';
+  document.getElementById('head-traditional-occ').value = h.traditionalOcc || '';
+  document.getElementById('head-pincode').value = h.pincode || '';
+  document.getElementById('head-address').value = h.address || '';
+  
+  if (h.photoBase64) {
+    const preview = document.getElementById('head-photo-preview');
+    const placeholder = document.getElementById('head-photo-placeholder');
+    preview.src = h.photoBase64;
+    preview.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+  }
+  
+  // Chain cascades for Head
+  if (h.country) {
+    document.getElementById('head-country').value = h.country;
+    await onCascadeChange('head', 'country');
+    if (h.state) {
+      document.getElementById('head-state').value = h.state;
+      await onCascadeChange('head', 'state');
+      if (h.district) {
+        document.getElementById('head-district').value = h.district;
+        await onCascadeChange('head', 'district');
+        if (h.taluk) {
+          document.getElementById('head-taluk').value = h.taluk;
+          await onCascadeChange('head', 'taluk');
+          if (h.ward) {
+            document.getElementById('head-ward').value = h.ward;
+          }
+        }
+      }
+    }
+  }
+  
+  // 2. Restore Family Members
+  for (let i = 0; i < state.members.length; i++) {
+    const m = state.members[i];
+    if (!m) continue;
     
-    document.getElementById('form-fullname').value = data.fullname || '';
-    document.getElementById('form-phone').value = data.phone || '';
-    document.getElementById('form-dob').value = data.dob || '';
-    document.getElementById('form-age').value = data.age || '';
-    document.getElementById('form-address').value = data.address || '';
+    document.getElementById(`member-fullname-${i}`).value = m.fullname || '';
+    document.getElementById(`member-phone-${i}`).value = m.phone || '';
+    document.getElementById(`member-dob-${i}`).value = m.dob || '';
+    document.getElementById(`member-age-${i}`).value = m.age || '';
+    document.getElementById(`member-aadhar-${i}`).value = m.aadhar || '';
+    document.getElementById(`member-relationship-${i}`).value = m.relationship || 'Spouse / ಪತ್ನಿ/ಪತಿ';
+    document.getElementById(`member-education-${i}`).value = m.education || '';
+    document.getElementById(`member-marital-${i}`).value = m.marital || 'Single / ಅವಿವಾಹಿತ';
+    document.getElementById(`member-sector-${i}`).value = m.sector || 'Government / ಸರ್ಕಾರಿ';
+    document.getElementById(`member-occupation-${i}`).value = m.occupation || '';
+    document.getElementById(`member-traditional-occ-${i}`).value = m.traditionalOcc || '';
+    document.getElementById(`member-pincode-${i}`).value = m.pincode || '';
+    document.getElementById(`member-address-${i}`).value = m.address || '';
     
-    // Restore image preview
-    if (data.photoBase64) {
-      const preview = document.getElementById('photo-preview');
-      const placeholder = document.getElementById('photo-placeholder');
-      preview.src = data.photoBase64;
+    // Set headers
+    document.getElementById(`member-header-name-${i}`).textContent = m.fullname || `Member ${i + 1}`;
+    
+    if (m.photoBase64) {
+      const preview = document.getElementById(`member-photo-preview-${i}`);
+      const placeholder = document.getElementById(`member-photo-placeholder-${i}`);
+      preview.src = m.photoBase64;
       preview.classList.remove('hidden');
       placeholder.classList.add('hidden');
     }
     
-    // Restore location cascading selects sequentially
-    if (data.country) {
-      document.getElementById('form-country').value = data.country;
-      await onCountryChanged();
-      
-      if (data.state) {
-        document.getElementById('form-state').value = data.state;
-        await onStateChanged();
-        
-        if (data.district) {
-          document.getElementById('form-district').value = data.district;
-          await onDistrictChanged();
-          
-          if (data.taluk) {
-            document.getElementById('form-taluk').value = data.taluk;
-            await onTalukChanged();
-            
-            if (data.ward) {
-              document.getElementById('form-ward').value = data.ward;
+    // Chain cascades for Member index i
+    if (m.country) {
+      document.getElementById(`member-country-${i}`).value = m.country;
+      await onCascadeChange(`member-${i}`, 'country');
+      if (m.state) {
+        document.getElementById(`member-state-${i}`).value = m.state;
+        await onCascadeChange(`member-${i}`, 'state');
+        if (m.district) {
+          document.getElementById(`member-district-${i}`).value = m.district;
+          await onCascadeChange(`member-${i}`, 'district');
+          if (m.taluk) {
+            document.getElementById(`member-taluk-${i}`).value = m.taluk;
+            await onCascadeChange(`member-${i}`, 'taluk');
+            if (m.ward) {
+              document.getElementById(`member-ward-${i}`).value = m.ward;
             }
           }
         }
       }
     }
-  } catch (error) {
-    console.error('Failed to restore form autosave:', error);
   }
+  showLoading(false);
 }
 
-function clearAutosave() {
-  localStorage.removeItem('tsm_form_autosave');
-  document.getElementById('member-reg-form').reset();
+function clearAutosaveForm() {
+  localStorage.removeItem('tsm_multi_autosave');
+  document.getElementById('survey-form').reset();
   
-  const preview = document.getElementById('photo-preview');
-  const placeholder = document.getElementById('photo-placeholder');
-  preview.src = '';
-  preview.classList.add('hidden');
-  placeholder.classList.remove('hidden');
+  // Clear Head photo
+  const headPreview = document.getElementById('head-photo-preview');
+  const headPlaceholder = document.getElementById('head-photo-placeholder');
+  headPreview.src = '';
+  headPreview.classList.add('hidden');
+  headPlaceholder.classList.remove('hidden');
   
-  // Disable cascades
-  document.getElementById('form-state').disabled = true;
-  document.getElementById('form-district').disabled = true;
-  document.getElementById('form-taluk').disabled = true;
-  document.getElementById('form-ward').disabled = true;
+  // Disable Head dropdowns
+  document.getElementById('head-state').disabled = true;
+  document.getElementById('head-district').disabled = true;
+  document.getElementById('head-taluk').disabled = true;
+  document.getElementById('head-ward').disabled = true;
+  
+  // Clear Members count select
+  document.getElementById('extra-members-count').value = '0';
+  document.getElementById('family-members-container').innerHTML = '';
 }
 
-// ── SUBMISSION AND CARD GENERATION ───────────────────
-async function submitForm() {
+// ── SURVEY SUBMISSION & MULTI-CARD GENERATION ────────
+async function submitSurveyForm() {
   if (!supabaseClient) {
-    showToast('Cannot submit. Supabase is not connected.', 'error');
+    showToast('Database connection missing.', 'error');
     return;
   }
   
-  const fullname = document.getElementById('form-fullname').value.trim();
-  const phone = document.getElementById('form-phone').value.trim();
-  const dob = document.getElementById('form-dob').value;
-  const age = document.getElementById('form-age').value;
-  const countryId = document.getElementById('form-country').value;
-  const stateId = document.getElementById('form-state').value;
-  const districtId = document.getElementById('form-district').value;
-  const talukId = document.getElementById('form-taluk').value;
-  const wardId = document.getElementById('form-ward').value;
-  const address = document.getElementById('form-address').value.trim();
-  const preview = document.getElementById('photo-preview');
+  const householdId = crypto.randomUUID(); // Unique group ID for this household submission
+  const state = serializeFormState();
+  const membersCount = state.members.length;
   
-  if (!fullname || !phone || !dob || !countryId || !stateId || !districtId || !talukId || !wardId || !address) {
-    showToast('Please fill all required fields.', 'error');
+  // 1. Verify Head fields
+  const h = state.head;
+  if (!h.fullname || !h.phone || !h.dob || !h.country || !h.state || !h.district || !h.taluk || !h.ward || !h.address) {
+    showToast('Please fill all required Head of Household fields.', 'error');
+    return;
+  }
+  if (!h.photoBase64) {
+    showToast('Please upload a profile photo for the Head of Household.', 'error');
     return;
   }
   
-  if (preview.classList.contains('hidden') || !preview.src) {
-    showToast('Please upload a profile photo.', 'error');
-    return;
+  // 2. Verify Family Member fields
+  for (let i = 0; i < membersCount; i++) {
+    const m = state.members[i];
+    if (!m.fullname || !m.dob || !m.country || !m.state || !m.district || !m.taluk || !m.ward || !m.address) {
+      showToast(`Please fill all required fields for Member ${i + 1}.`, 'error');
+      return;
+    }
+    if (!m.photoBase64) {
+      showToast(`Please upload a profile photo for Member ${i + 1}.`, 'error');
+      return;
+    }
   }
   
-  showLoading(true, 'Uploading photo & registering member...');
+  showLoading(true, 'Uploading photos and saving records...');
   
   try {
-    let photoUrl = null;
-    
-    // 1. Upload base64 profile image to storage bucket 'profile-photos'
-    if (preview.src.startsWith('data:image')) {
-      const fileName = `${phone}_${Date.now()}.jpg`;
-      photoUrl = await uploadImageToBucket(preview.src, 'profile-photos', fileName);
+    // A. Process and upload Head details
+    let headPhotoUrl = null;
+    if (h.photoBase64.startsWith('data:image')) {
+      const fileName = `head_${currentUserPhone}_${Date.now()}.jpg`;
+      headPhotoUrl = await uploadImageToBucket(h.photoBase64, 'profile-photos', fileName);
     }
     
-    // 2. Insert member row in Database
-    const { data: memberData, error: memberErr } = await supabaseClient
+    const { data: dbHead, error: headErr } = await supabaseClient
       .from('members')
       .insert({
-        full_name: fullname,
-        phone: phone,
-        dob: dob,
-        age: parseInt(age),
-        country_id: parseInt(countryId),
-        state_id: parseInt(stateId),
-        district_id: parseInt(districtId),
-        taluk_id: parseInt(talukId),
-        ward_id: parseInt(wardId),
-        address: address,
-        photo_url: photoUrl
+        household_id: householdId,
+        is_head: true,
+        relationship: 'Head',
+        full_name: h.fullname,
+        phone: h.phone,
+        dob: h.dob,
+        age: parseInt(h.age),
+        marital_status: h.marital,
+        education: h.education,
+        employment_sector: h.sector,
+        occupation: h.occupation,
+        traditional_occupation: h.traditionalOcc,
+        country_id: parseInt(h.country),
+        state_id: parseInt(h.state),
+        district_id: parseInt(h.district),
+        taluk_id: parseInt(h.taluk),
+        ward_id: parseInt(h.ward),
+        address: h.address,
+        pincode: h.pincode,
+        photo_url: headPhotoUrl
       })
       .select()
       .single();
       
-    if (memberErr) throw memberErr;
+    if (headErr) throw headErr;
     
-    const memberId = memberData.member_id;
+    // Generate Card for Head
+    showLoading(true, 'Generating Head card...');
+    const headCardImg = await generateAndUploadCard(dbHead, headPhotoUrl, 'head');
     
-    // 3. Render Membership Card & Upload to 'card-images'
-    showLoading(true, 'Generating membership card...');
-    const cardImgUrl = await generateAndUploadCard(memberData, photoUrl);
+    await supabaseClient.from('member_cards').insert({
+      member_id: dbHead.member_id,
+      card_image_url: headCardImg
+    });
     
-    // 4. Save to member_cards table
-    const { error: cardErr } = await supabaseClient
-      .from('member_cards')
-      .insert({
-        member_id: memberId,
-        card_image_url: cardImgUrl
-      });
+    // B. Process and upload Family Members
+    for (let i = 0; i < membersCount; i++) {
+      const m = state.members[i];
+      showLoading(true, `Uploading photo for Member ${i + 1}...`);
       
-    if (cardErr) throw cardErr;
+      let memberPhotoUrl = null;
+      if (m.photoBase64.startsWith('data:image')) {
+        const fileName = `member_${i}_${currentUserPhone}_${Date.now()}.jpg`;
+        memberPhotoUrl = await uploadImageToBucket(m.photoBase64, 'profile-photos', fileName);
+      }
+      
+      showLoading(true, `Saving member ${i + 1} details...`);
+      const { data: dbMember, error: memberErr } = await supabaseClient
+        .from('members')
+        .insert({
+          household_id: householdId,
+          is_head: false,
+          relationship: m.relationship,
+          full_name: m.fullname,
+          phone: m.phone || h.phone, // fallback to head phone
+          dob: m.dob,
+          age: parseInt(m.age),
+          marital_status: m.marital,
+          education: m.education,
+          employment_sector: m.sector,
+          occupation: m.occupation,
+          traditional_occupation: m.traditionalOcc,
+          country_id: parseInt(m.country),
+          state_id: parseInt(m.state),
+          district_id: parseInt(m.district),
+          taluk_id: parseInt(m.taluk),
+          ward_id: parseInt(m.ward),
+          address: m.address,
+          pincode: m.pincode,
+          photo_url: memberPhotoUrl
+        })
+        .select()
+        .single();
+        
+      if (memberErr) throw memberErr;
+      
+      // Generate Card for Member
+      showLoading(true, `Generating card for Member ${i + 1}...`);
+      const memberCardImg = await generateAndUploadCard(dbMember, memberPhotoUrl, `member-${i}`);
+      
+      await supabaseClient.from('member_cards').insert({
+        member_id: dbMember.member_id,
+        card_image_url: memberCardImg
+      });
+    }
     
     showLoading(false);
-    showToast('Member Registered Successfully!', 'success');
-    clearAutosave();
+    showToast('Survey Submitted and Cards Generated!', 'success');
+    clearAutosaveForm();
     switchUserTab('view-cards');
   } catch (error) {
     console.error('Submission failed:', error);
     showLoading(false);
-    showToast(`Submission failed: ${error.message}`, 'error');
+    showToast(`Submission error: ${error.message}`, 'error');
   }
 }
 
-// Helper to convert base64 to Blob and upload to Supabase Storage
+// Upload base64 image data to Supabase storage bucket
 async function uploadImageToBucket(base64Data, bucketName, fileName) {
-  const response = await fetch(base64Data);
-  const blob = await response.blob();
-  
-  const { data, error } = await supabaseClient.storage
-    .from(bucketName)
-    .upload(fileName, blob, {
-      cacheControl: '3600',
-      upsert: true,
-      contentType: 'image/jpeg'
-    });
+  try {
+    const response = await fetch(base64Data);
+    const blob = await response.blob();
     
-  if (error) throw error;
-  
-  const { data: publicUrlData } = supabaseClient.storage
-    .from(bucketName)
-    .getPublicUrl(fileName);
+    const { error } = await supabaseClient.storage
+      .from(bucketName)
+      .upload(fileName, blob, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: blob.type || 'image/jpeg'
+      });
+      
+    if (error) throw error;
     
-  return publicUrlData.publicUrl;
+    const { data: publicUrlData } = supabaseClient.storage
+      .from(bucketName)
+      .getPublicUrl(fileName);
+      
+    return publicUrlData.publicUrl;
+  } catch (error) {
+    console.error('Image upload failed:', error);
+    throw error;
+  }
 }
 
 // Generate Card via html2canvas and save to Storage
-async function generateAndUploadCard(member, profileUrl) {
-  // Query name mappings for visual display
-  const districtName = document.getElementById('form-district').options[document.getElementById('form-district').selectedIndex].text;
-  const talukName = document.getElementById('form-taluk').options[document.getElementById('form-taluk').selectedIndex].text;
+async function generateAndUploadCard(member, profileUrl, cardPrefix) {
+  // Resolve geographic select list labels
+  const districtName = document.getElementById(`${cardPrefix}-district`).options[document.getElementById(`${cardPrefix}-district`).selectedIndex].text;
+  const talukName = document.getElementById(`${cardPrefix}-taluk`).options[document.getElementById(`${cardPrefix}-taluk`).selectedIndex].text;
   
-  // Render temporary container for card screenshot
   const tempContainer = document.createElement('div');
   tempContainer.style.position = 'fixed';
   tempContainer.style.top = '-9999px';
   tempContainer.style.left = '-9999px';
   
   // Convert remote profile picture URL to base64 prior to canvas rendering (CORS safety)
-  let base64Profile = profileUrl;
-  try {
-    const res = await fetch(profileUrl);
-    const blob = await res.blob();
-    base64Profile = await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.readAsDataURL(blob);
-    });
-  } catch (e) {
-    console.warn('CORS profile load exception, falling back:', e);
+  let base64Profile = profileUrl || 'assets/app_icon.jpg';
+  if (profileUrl) {
+    try {
+      const res = await fetch(profileUrl);
+      const blob = await res.blob();
+      base64Profile = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.warn('CORS profile load exception, falling back:', e);
+    }
   }
   
   const cardHtml = getSingleCardHTML({
@@ -662,13 +1025,12 @@ async function generateAndUploadCard(member, profileUrl) {
   
   const canvas = await html2canvas(cardElement, {
     useCORS: true,
-    scale: 3, // Premium clarity
+    scale: 3,
     backgroundColor: null
   });
   
   document.body.removeChild(tempContainer);
   
-  // Export canvas to base64 and upload
   const cardBase64 = canvas.toDataURL('image/png');
   const fileName = `card_${member.member_id}.png`;
   
@@ -777,7 +1139,6 @@ async function loadUserCards() {
   }
   
   try {
-    // Single query fetch (members join resolved views and cards)
     const { data, error } = await supabaseClient
       .from('members_resolved')
       .select('*, member_cards(*)')
@@ -830,15 +1191,16 @@ function renderWelcomeVachanas() {
   `).join('');
 }
 
+async function loadGeographicDropdowns() {
+  await loadCountriesDropdown();
+}
+
 // ── ADMIN PORTAL LOGIC ───────────────────────────────
 async function showAdminPortal() {
   document.getElementById('admin-portal').classList.remove('hidden');
   switchAdminTab('members');
   
-  // Load countries in admin filters & modals
   await loadGeographicDropdowns();
-  
-  // Load messages from LocalStorage
   loadAdminBroadcastMessages();
 }
 
@@ -856,7 +1218,6 @@ function switchAdminTab(tabName) {
   }
 }
 
-// Fetch members for Admin Dashboard
 async function fetchAdminMembers() {
   showLoading(true, 'Fetching member records...');
   
@@ -871,9 +1232,7 @@ async function fetchAdminMembers() {
     allMembers = data || [];
     filteredMembers = [...allMembers];
     
-    // Update count badge
     document.getElementById('admin-total-count').textContent = allMembers.length;
-    
     renderAdminMembersTable();
   } catch (err) {
     console.error('Fetch members error:', err);
@@ -907,9 +1266,7 @@ async function onAdminCountryFilterChanged() {
     if (error) throw error;
     populateDropdown('admin-filter-state', data || []);
     stateSelect.disabled = false;
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (err) { console.error(err); }
   applyAdminFilters();
 }
 
@@ -934,9 +1291,7 @@ async function onAdminStateFilterChanged() {
     if (error) throw error;
     populateDropdown('admin-filter-district', data || []);
     districtSelect.disabled = false;
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (err) { console.error(err); }
   applyAdminFilters();
 }
 
@@ -947,12 +1302,10 @@ function applyAdminFilters() {
   const districtId = document.getElementById('admin-filter-district').value;
   
   filteredMembers = allMembers.filter(m => {
-    // 1. Dropdown Filters
     if (countryId && m.country_id != countryId) return false;
     if (stateId && m.state_id != stateId) return false;
     if (districtId && m.district_id != districtId) return false;
     
-    // 2. Text Search Match
     if (searchVal) {
       const nameMatch = m.full_name?.toLowerCase().includes(searchVal);
       const phoneMatch = m.phone?.includes(searchVal);
@@ -961,7 +1314,6 @@ function applyAdminFilters() {
       
       if (!nameMatch && !phoneMatch && !addressMatch && !idMatch) return false;
     }
-    
     return true;
   });
   
@@ -1043,7 +1395,7 @@ async function deleteMember(id) {
   }
 }
 
-// Edit Member Cascades
+// Edit Member cascades
 async function onEditCountryChanged() {
   const countryId = document.getElementById('edit-country').value;
   const stateSelect = document.getElementById('edit-state');
@@ -1059,18 +1411,11 @@ async function onEditCountryChanged() {
   if (!countryId) return;
   
   try {
-    const { data, error } = await supabaseClient
-      .from('states')
-      .select('*')
-      .eq('country_id', countryId)
-      .order('name', { ascending: true });
-      
+    const { data, error } = await supabaseClient.from('states').select('*').eq('country_id', countryId).order('name', { ascending: true });
     if (error) throw error;
     populateDropdown('edit-state', data || []);
     stateSelect.disabled = false;
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function onEditStateChanged() {
@@ -1082,22 +1427,14 @@ async function onEditStateChanged() {
   resetDropdown(districtSelect, 'Select District');
   resetDropdown(talukSelect, 'Select Taluk');
   resetDropdown(wardSelect, 'Select Ward');
-  
   if (!stateId) return;
   
   try {
-    const { data, error } = await supabaseClient
-      .from('districts')
-      .select('*')
-      .eq('state_id', stateId)
-      .order('name', { ascending: true });
-      
+    const { data, error } = await supabaseClient.from('districts').select('*').eq('state_id', stateId).order('name', { ascending: true });
     if (error) throw error;
     populateDropdown('edit-district', data || []);
     districtSelect.disabled = false;
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function onEditDistrictChanged() {
@@ -1107,22 +1444,14 @@ async function onEditDistrictChanged() {
   
   resetDropdown(talukSelect, 'Select Taluk');
   resetDropdown(wardSelect, 'Select Ward');
-  
   if (!districtId) return;
   
   try {
-    const { data, error } = await supabaseClient
-      .from('taluks')
-      .select('*')
-      .eq('district_id', districtId)
-      .order('name', { ascending: true });
-      
+    const { data, error } = await supabaseClient.from('taluks').select('*').eq('district_id', districtId).order('name', { ascending: true });
     if (error) throw error;
     populateDropdown('edit-taluk', data || []);
     talukSelect.disabled = false;
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function onEditTalukChanged() {
@@ -1130,22 +1459,14 @@ async function onEditTalukChanged() {
   const wardSelect = document.getElementById('edit-ward');
   
   resetDropdown(wardSelect, 'Select Ward');
-  
   if (!talukId) return;
   
   try {
-    const { data, error } = await supabaseClient
-      .from('wards')
-      .select('*')
-      .eq('taluk_id', talukId)
-      .order('name', { ascending: true });
-      
+    const { data, error } = await supabaseClient.from('wards').select('*').eq('taluk_id', talukId).order('name', { ascending: true });
     if (error) throw error;
     populateDropdown('edit-ward', data || []);
     wardSelect.disabled = false;
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 function calculateAgeForEdit() {
@@ -1161,7 +1482,6 @@ function calculateAgeForEdit() {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
       calculatedAge--;
     }
-    
     ageInput.value = calculatedAge >= 0 ? calculatedAge : 0;
   } else {
     ageInput.value = '';
@@ -1180,7 +1500,6 @@ async function openEditModal(dbId) {
   document.getElementById('edit-age').value = member.age;
   document.getElementById('edit-address').value = member.address;
   
-  // Chain Cascades restoration for editing modal dropdowns
   showLoading(true, 'Loading address details...');
   try {
     if (member.country_id) {
@@ -1206,11 +1525,8 @@ async function openEditModal(dbId) {
         }
       }
     }
-  } catch (err) {
-    console.error(err);
-  } finally {
-    showLoading(false);
-  }
+  } catch (err) { console.error(err); }
+  finally { showLoading(false); }
   
   document.getElementById('edit-member-modal').classList.remove('hidden');
 }
@@ -1254,7 +1570,7 @@ async function submitEditMember() {
       
     if (error) throw error;
     
-    // Also regenerate card image if key info changed
+    // Regenerate card image
     const targetMember = allMembers.find(m => m.id == id);
     if (targetMember && (targetMember.full_name !== fullname || targetMember.age != age)) {
       await generateAndUploadCard({
@@ -1269,7 +1585,7 @@ async function submitEditMember() {
         taluk_id: talukId,
         ward_id: wardId,
         address: address
-      }, targetMember.photo_url);
+      }, targetMember.photo_url, 'edit');
     }
     
     showToast('Record updated successfully.', 'success');
@@ -1391,22 +1707,6 @@ function deleteBroadcastMessage(index) {
   }
 }
 
-// ── ADMIN APP NAVIGATION ─────────────────────────────
-function switchAdminTab(tabName) {
-  document.querySelectorAll('#admin-portal .bottom-nav button').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
-  
-  if (tabName === 'members') {
-    document.getElementById('tab-admin-members').classList.remove('hidden');
-    document.querySelector('#admin-portal .bottom-nav button:nth-child(1)').classList.add('active');
-    fetchAdminMembers();
-  } else if (tabName === 'messages') {
-    document.getElementById('tab-admin-messages').classList.remove('hidden');
-    document.querySelector('#admin-portal .bottom-nav button:nth-child(2)').classList.add('active');
-    loadAdminBroadcastMessages();
-  }
-}
-
 // ── UTILITY HELPERS ───────────────────────────────────
 function populateDropdown(selectId, list) {
   const select = document.getElementById(selectId);
@@ -1445,12 +1745,11 @@ function showToast(message, type = 'info') {
   
   toast.classList.remove('hidden');
   
-  // Clear any existing timeout
   if (toast.timeoutId) clearTimeout(toast.timeoutId);
   
   toast.timeoutId = setTimeout(() => {
     toast.classList.add('hidden');
-  }, 4000);
+  }, 4500);
 }
 
 function showLoading(show, text = 'Processing...') {
@@ -1464,5 +1763,24 @@ function showLoading(show, text = 'Processing...') {
     } else {
       overlay.classList.add('hidden');
     }
+  }
+}
+
+function confirmLogout() {
+  if (confirm('Are you sure you want to logout?')) {
+    localStorage.removeItem('tsm_session');
+    currentUserPhone = '';
+    currentUserRole = '';
+    
+    document.getElementById('user-portal').classList.add('hidden');
+    document.getElementById('admin-portal').classList.add('hidden');
+    
+    document.getElementById('phone-input').value = '';
+    document.getElementById('otp-input').value = '';
+    document.getElementById('login-otp-section').classList.add('hidden');
+    document.getElementById('login-phone-section').classList.remove('hidden');
+    
+    document.getElementById('login-page').classList.remove('hidden');
+    showToast('Logged out successfully', 'info');
   }
 }

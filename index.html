@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tralabalu Shishya Mandali</title>
-  <!-- Modern Typography and Icons -->
+  <!-- Google Fonts & Icon Stylesheets -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- Supabase & HTML2Canvas CDN libraries -->
+  <!-- CDN Libraries (Supabase and html2canvas) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -20,7 +20,7 @@
   <!-- ==================== BACKGROUND WATERMARK ==================== -->
   <div class="app-watermark"></div>
 
-  <!-- ==================== SPLASH SCREEN ==================== -->
+  <!-- ==================== SPLASH SCREEN (Centred, solid, no overlays/effects) ==================== -->
   <div id="splash-screen" class="splash-screen">
     <div class="splash-content">
       <img src="assets/splash.jpg" alt="Sri Taralabalu Jagadguru" class="splash-img">
@@ -32,7 +32,7 @@
     </div>
   </div>
 
-  <!-- ==================== LOGIN PAGE ==================== -->
+  <!-- ==================== LOGIN PAGE (Modern, light animations allowed) ==================== -->
   <div id="login-page" class="page login-page">
     <div class="login-card">
       <div class="login-logo-container">
@@ -41,7 +41,7 @@
       <h1 class="login-title">Tralabalu Shishya Mandali</h1>
       <p class="login-subtitle">Member Registry Portal</p>
       
-      <!-- Phone Input Section -->
+      <!-- Phone Input Block -->
       <div id="login-phone-section">
         <div class="input-group">
           <span class="input-icon">📞</span>
@@ -51,7 +51,7 @@
         <button id="send-otp-btn" class="btn btn-primary" onclick="sendOTP()" disabled>Send OTP</button>
       </div>
 
-      <!-- OTP Input Section -->
+      <!-- OTP Input Block -->
       <div id="login-otp-section" class="hidden">
         <div class="input-group">
           <span class="input-icon">🔒</span>
@@ -66,104 +66,198 @@
 
   <!-- ==================== USER PORTAL ==================== -->
   <div id="user-portal" class="portal hidden">
-    <!-- Top AppBar -->
+    <!-- Top Fixed AppBar -->
     <header class="app-bar">
-      <div class="app-bar-title">Tralabalu Shishya Mandali</div>
+      <div class="app-bar-title">Census App</div>
       <button class="btn-logout" onclick="confirmLogout()" title="Logout">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </header>
 
-    <!-- Tab Contents -->
+    <!-- Scrollable Tab Content Area -->
     <main class="content-area">
-      <!-- Tab 1: Fill Form -->
+      <!-- Tab 1: Fill Form (Household wizard) -->
       <section id="tab-fill-form" class="tab-content">
-        <div class="form-container">
-          <h2 class="section-title">ಮತ್ತು ಸದಸ್ಯರ ನೋಂದಣಿ / Member Registration</h2>
-          <form id="member-reg-form" onsubmit="event.preventDefault(); submitForm();">
+        <div class="form-wizard-container">
+          <form id="survey-form" onsubmit="event.preventDefault(); submitSurveyForm();">
             
-            <!-- Profile Photo Upload (Preview Kept Visible) -->
-            <div class="photo-upload-section">
-              <div class="photo-preview-container" onclick="triggerPhotoSelect()">
-                <img id="photo-preview" src="" class="hidden" alt="Profile Preview">
-                <div id="photo-placeholder" class="photo-placeholder">
-                  <span class="placeholder-icon">📸</span>
-                  <span class="placeholder-text">Add Profile Photo</span>
+            <!-- SECTION 1: HEAD OF HOUSEHOLD -->
+            <div class="section-header">HOUSEHOLD HEAD / ಮುಖ್ಯಸ್ಥ</div>
+            <div class="form-card" id="head-card">
+              <div class="form-card-header" onclick="toggleCardCollapse('head')">
+                <div class="card-left-header">
+                  <div class="card-avatar head-avatar">🏠</div>
+                  <div class="card-header-titles">
+                    <h4 id="head-header-name">Head / ಮುಖ್ಯಸ್ಥ</h4>
+                    <p id="head-header-sub">Head of Household</p>
+                  </div>
+                </div>
+                <div class="card-collapse-icon" id="head-collapse-icon">▲</div>
+              </div>
+              
+              <div class="form-card-body" id="head-card-body">
+                <!-- Profile Image Upload (keeps preview visible) -->
+                <div class="photo-upload-section">
+                  <div class="photo-preview-container" onclick="triggerPhotoSelect('head')">
+                    <img id="head-photo-preview" src="" class="hidden" alt="Profile Preview">
+                    <div id="head-photo-placeholder" class="photo-placeholder">
+                      <span class="placeholder-icon">📷</span>
+                      <span class="placeholder-text">Add Profile Photo</span>
+                    </div>
+                  </div>
+                  <input type="file" id="head-photo-input" accept="image/*" class="hidden" onchange="previewMemberPhoto('head', event)">
+                  <p class="field-hint">Tap circle to choose profile image</p>
+                </div>
+
+                <!-- Personal Info -->
+                <h4 class="form-group-title">Personal Info</h4>
+                <div class="input-field">
+                  <label for="head-fullname">Name / ಹೆಸರು *</label>
+                  <input type="text" id="head-fullname" required oninput="saveAutosaveForm()">
+                </div>
+
+                <div class="form-row">
+                  <div class="input-field width-50">
+                    <label for="head-marital">Marital Status *</label>
+                    <select id="head-marital" required onchange="saveAutosaveForm()">
+                      <option value="Single / ಅವಿವಾಹಿತ">Single / ಅವಿವಾಹಿತ</option>
+                      <option value="Married / ವಿವಾಹಿತ">Married / ವಿವಾಹಿತ</option>
+                      <option value="Divorced / ವಿಚ್ಛೇದಿತ">Divorced / ವಿಚ್ಛೇದಿತ</option>
+                      <option value="Widowed / ವಿಧವೆ/ವಿಧುರ">Widowed / ವಿಧವೆ/ವಿಧುರ</option>
+                    </select>
+                  </div>
+                  <div class="input-field width-50">
+                    <label for="head-phone">Mobile Number / ಮೊಬೈಲ್ ಸಂಖ್ಯೆ *</label>
+                    <input type="tel" id="head-phone" maxlength="10" required oninput="saveAutosaveForm()">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="input-field width-50">
+                    <label for="head-dob">Date of Birth / ಜನ್ಮ ದಿನಾಂಕ *</label>
+                    <input type="date" id="head-dob" required onchange="onDobChanged('head')">
+                  </div>
+                  <div class="input-field width-50">
+                    <label for="head-age">Age / ವಯಸ್ಸು</label>
+                    <input type="text" id="head-age" readonly placeholder="Auto-calculated">
+                  </div>
+                </div>
+
+                <div class="input-field">
+                  <label for="head-aadhar">Aadhar Number / ಆಧಾರ್ ಸಂಖ್ಯೆ</label>
+                  <input type="text" id="head-aadhar" placeholder="0000 0000 0000" maxlength="14" oninput="formatAadharInput('head')">
+                </div>
+
+                <div class="input-field">
+                  <label for="head-education">Education / ಶಿಕ್ಷಣ</label>
+                  <input type="text" id="head-education" oninput="saveAutosaveForm()">
+                </div>
+
+                <div class="form-row">
+                  <div class="input-field width-50">
+                    <label for="head-sector">Employment Sector</label>
+                    <select id="head-sector" onchange="saveAutosaveForm()">
+                      <option value="Government / ಸರ್ಕಾರಿ">Government / ಸರ್ಕಾರಿ</option>
+                      <option value="Private / ಖಾಸಗಿ">Private / ಖಾಸಗಿ</option>
+                      <option value="Self / ಸ್ವಯಂ">Self / ಸ್ವಯಂ</option>
+                      <option value="Student / ವಿದ್ಯಾರ್ಥಿ">Student / ವಿದ್ಯಾರ್ಥಿ</option>
+                      <option value="None / ಇಲ್ಲ">None / ಇಲ್ಲ</option>
+                    </select>
+                  </div>
+                  <div class="input-field width-50">
+                    <label for="head-occupation">Occupation / ಉದ್ಯೋಗ</label>
+                    <input type="text" id="head-occupation" oninput="saveAutosaveForm()">
+                  </div>
+                </div>
+
+                <div class="input-field">
+                  <label for="head-traditional-occ">Traditional Occupation / ಸಾಂಪ್ರದಾಯಿಕ ಉದ್ಯೋಗ</label>
+                  <input type="text" id="head-traditional-occ" oninput="saveAutosaveForm()">
+                </div>
+
+                <!-- Location Cascades (Dynamic) -->
+                <h4 class="form-group-title">Address / ವಿಳಾಸ</h4>
+                
+                <div class="input-field">
+                  <label for="head-country">Country / ದೇಶ *</label>
+                  <select id="head-country" required onchange="onCascadeChange('head', 'country')">
+                    <option value="">Select Country</option>
+                  </select>
+                </div>
+
+                <div class="form-row">
+                  <div class="input-field width-50">
+                    <label for="head-state">State / ರಾಜ್ಯ *</label>
+                    <select id="head-state" required onchange="onCascadeChange('head', 'state')" disabled>
+                      <option value="">Select State</option>
+                    </select>
+                  </div>
+                  <div class="input-field width-50">
+                    <label for="head-district">District / ಜಿಲ್ಲೆ *</label>
+                    <select id="head-district" required onchange="onCascadeChange('head', 'district')" disabled>
+                      <option value="">Select District</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="input-field width-50">
+                    <label for="head-taluk">Taluk / ತಾಲ್ಲೂಕು *</label>
+                    <select id="head-taluk" required onchange="onCascadeChange('head', 'taluk')" disabled>
+                      <option value="">Select Taluk</option>
+                    </select>
+                  </div>
+                  <div class="input-field width-50">
+                    <label for="head-ward">Ward / ವಾರ್ಡ್ / Nagara *</label>
+                    <select id="head-ward" required onchange="saveAutosaveForm()" disabled>
+                      <option value="">Select Ward</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="input-field width-50">
+                    <label for="head-pincode">Pincode *</label>
+                    <input type="text" id="head-pincode" maxlength="6" required oninput="onPincodeChange('head')">
+                  </div>
+                </div>
+
+                <div class="input-field">
+                  <label for="head-address">Full Address / ಪೂರ್ಣ ವಿಳಾಸ *</label>
+                  <textarea id="head-address" rows="3" required oninput="saveAutosaveForm()"></textarea>
                 </div>
               </div>
-              <input type="file" id="photo-file-input" accept="image/*" class="hidden" onchange="previewPhoto(event)">
-              <p class="field-hint">Tap circle to capture or choose photo</p>
             </div>
 
-            <!-- Personal Details -->
-            <h3 class="subsection-title">ವೈಯಕ್ತಿಕ ಮಾಹಿತಿ / Personal Details</h3>
-            
-            <div class="input-field">
-              <label for="form-fullname">ಹೆಸರು / Full Name *</label>
-              <input type="text" id="form-fullname" required oninput="saveAutosave()">
-            </div>
-
-            <div class="input-field">
-              <label for="form-phone">ಮೊಬೈಲ್ ಸಂಖ್ಯೆ / Phone Number *</label>
-              <input type="tel" id="form-phone" maxlength="10" required oninput="saveAutosave()">
-            </div>
-
-            <!-- DOB & Age side-by-side row -->
-            <div class="form-row">
-              <div class="input-field width-50">
-                <label for="form-dob">ಹುಟ್ಟಿದ ದಿನಾಂಕ / Date of Birth *</label>
-                <input type="date" id="form-dob" required onchange="calculateAgeAndAutosave()">
-              </div>
-              <div class="input-field width-50">
-                <label for="form-age">ವಯಸ್ಸು / Age</label>
-                <input type="text" id="form-age" readonly placeholder="Auto-calculated">
+            <!-- SECTION 2: MEMBERS SELECTION CARD -->
+            <div class="form-card selector-card">
+              <div class="selector-card-content">
+                <div class="selector-text">
+                  <h4>Select total extra members</h4>
+                  <p>ಒಟ್ಟು ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆಮಾಡಿ</p>
+                </div>
+                <select id="extra-members-count" onchange="onExtraMembersCountChanged()">
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                </select>
               </div>
             </div>
 
-            <!-- Cascading Address Hierarchy Dropdowns -->
-            <h3 class="subsection-title">ವಿಳಾಸ ವಿವರಗಳು / Address Details</h3>
-            
-            <div class="input-field">
-              <label for="form-country">ದೇಶ / Country *</label>
-              <select id="form-country" required onchange="onCountryChanged()">
-                <option value="">Select Country</option>
-              </select>
+            <!-- SECTION 3: DYNAMIC FAMILY MEMBERS CONTAINER -->
+            <div id="family-members-container">
+              <!-- Rendered via JS -->
             </div>
 
-            <div class="input-field">
-              <label for="form-state">ರಾಜ್ಯ / State *</label>
-              <select id="form-state" required onchange="onStateChanged()" disabled>
-                <option value="">Select State</option>
-              </select>
-            </div>
-
-            <div class="input-field">
-              <label for="form-district">ಜಿಲ್ಲೆ / District *</label>
-              <select id="form-district" required onchange="onDistrictChanged()" disabled>
-                <option value="">Select District</option>
-              </select>
-            </div>
-
-            <div class="input-field">
-              <label for="form-taluk">ತಾಲ್ಲೂಕು / Taluk *</label>
-              <select id="form-taluk" required onchange="onTalukChanged()" disabled>
-                <option value="">Select Taluk</option>
-              </select>
-            </div>
-
-            <div class="input-field">
-              <label for="form-ward">ವಾರ್ಡ್ / Nagara / Ward *</label>
-              <select id="form-ward" required onchange="saveAutosave()" disabled>
-                <option value="">Select Ward</option>
-              </select>
-            </div>
-
-            <div class="input-field">
-              <label for="form-address">ಪೂರ್ಣ ವಿಳಾಸ / Full Address *</label>
-              <textarea id="form-address" rows="3" required oninput="saveAutosave()"></textarea>
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-submit-form">ದತ್ತಾಂಶವನ್ನು ಸಲ್ಲಿಸಿ / Submit Form</button>
+            <button type="submit" id="btn-submit-survey" class="btn btn-primary btn-submit-form">ಸಮೀಕ್ಷೆಯನ್ನು ಸಲ್ಲಿಸಿ / Submit Survey</button>
           </form>
         </div>
       </section>
@@ -171,19 +265,19 @@
       <!-- Tab 2: View Cards (User Dashboard Card History) -->
       <section id="tab-view-cards" class="tab-content hidden">
         <div class="dashboard-container">
-          <h2 class="section-title">ಸದಸ್ಯತ್ವ ಕಾರ್ಡ್‌ಗಳು / Membership Cards</h2>
+          <h2 class="section-title">ರಚಿಸಲಾದ ಕಾರ್ಡ್‌ಗಳು / Generated Cards</h2>
           <div id="user-cards-list" class="cards-list">
             <!-- Cards populated dynamically -->
           </div>
         </div>
       </section>
 
-      <!-- Tab 3: Welcome (Spiritual Vachanas) -->
+      <!-- Tab 3: Welcome (Vachanas) -->
       <section id="tab-welcome" class="tab-content hidden">
         <div class="welcome-container">
           <h2 class="section-title">ಗುರು ಸಂದೇಶ / Guru Messages</h2>
           <div id="vachanas-list" class="vachanas-list">
-            <!-- Populated dynamically -->
+            <!-- Messages populated dynamically -->
           </div>
         </div>
       </section>
@@ -200,7 +294,7 @@
         <span class="nav-label">View Cards</span>
       </button>
       <button class="nav-item" onclick="switchUserTab('welcome')">
-        <span class="nav-icon">🏛️</span>
+        <span class="nav-icon">🏠</span>
         <span class="nav-label">Welcome</span>
       </button>
     </nav>
@@ -213,7 +307,7 @@
       <div class="app-bar-title">Admin Dashboard</div>
       <div class="app-bar-actions">
         <div class="admin-total-badge">
-          👥 Total: <span id="admin-total-count">0</span>
+          Total Members: <span id="admin-total-count">0</span>
         </div>
         <button class="btn-logout" onclick="confirmLogout()" title="Logout">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -223,16 +317,16 @@
 
     <!-- Admin Content Area -->
     <main class="content-area">
-      <!-- Admin Tab 1: Members Table -->
+      <!-- Admin Tab 1: Households/Members Table -->
       <section id="tab-admin-members" class="tab-content">
         <div class="admin-dashboard-container">
           
           <!-- Filters Panel -->
           <div class="filters-panel">
-            <h3 class="filters-title">ಹುಡುಕು ಮತ್ತು ಶೋಧಿಸು / Search & Filters</h3>
+            <h3 class="filters-title">ಹುಡುಕು ಮತ್ತು ಶೋಧಿಸು / Filters</h3>
             
             <div class="filter-field">
-              <input type="text" id="admin-search-input" placeholder="Search Name, Phone or Address..." oninput="applyAdminFilters()">
+              <input type="text" id="admin-search-input" placeholder="Search Name or Pincode..." oninput="applyAdminFilters()">
             </div>
             
             <div class="filter-row">
@@ -254,7 +348,7 @@
             </div>
 
             <div class="filter-buttons">
-              <button class="btn btn-outlined btn-reset-filters" onclick="resetAdminFilters()">Reset Filters</button>
+              <button class="btn btn-outlined btn-reset-filters" onclick="resetAdminFilters()">Reset</button>
               <button class="btn btn-secondary btn-export" onclick="exportData('csv')">Export CSV</button>
               <button class="btn btn-secondary btn-export" onclick="exportData('json')">Export JSON</button>
             </div>
@@ -268,7 +362,7 @@
                   <th>ID Number</th>
                   <th>Photo</th>
                   <th>Name</th>
-                  <th>Phone</th>
+                  <th>Phone Number</th>
                   <th>Country</th>
                   <th>State</th>
                   <th>District</th>
@@ -306,7 +400,7 @@
     <nav class="bottom-nav">
       <button class="nav-item active" onclick="switchAdminTab('members')">
         <span class="nav-icon">👥</span>
-        <span class="nav-label">Members</span>
+        <span class="nav-label">Households</span>
       </button>
       <button class="nav-item" onclick="switchAdminTab('messages')">
         <span class="nav-icon">✉️</span>
@@ -402,7 +496,7 @@
       </header>
       <div class="modal-body centered-modal-body">
         <div id="card-render-container">
-          <!-- The generated HTML card will be loaded here -->
+          <!-- Loaded dynamically -->
         </div>
       </div>
     </div>
@@ -422,7 +516,7 @@
     </div>
   </div>
 
-  <!-- Main Application Logic script -->
-  <script src="app.js?v=119"></script>
+  <!-- Core JS logic script (Cache-busted) -->
+  <script src="app.js?v=120"></script>
 </body>
 </html>
