@@ -435,15 +435,24 @@ function deleteFamilyMemberCard(index) {
 
 // Expandable / Collapsible cards function
 function toggleCardCollapse(cardPrefix) {
-  const body = document.getElementById(`${cardPrefix}-card-body`);
-  const icon = document.getElementById(`${cardPrefix}-collapse-icon`);
+  let body = document.getElementById(`${cardPrefix}-card-body`);
+  let icon = document.getElementById(`${cardPrefix}-collapse-icon`);
+  
+  // Handle alternate naming for dynamic member cards
+  if (!body && cardPrefix.startsWith('member-')) {
+    const index = cardPrefix.split('-')[1];
+    body = document.getElementById(`member-card-body-${index}`);
+    icon = document.getElementById(`member-collapse-icon-${index}`);
+  }
+  
+  if (!body) return;
   
   if (body.classList.contains('hidden')) {
     body.classList.remove('hidden');
-    icon.textContent = '▲';
+    if (icon) icon.textContent = '▲';
   } else {
     body.classList.add('hidden');
-    icon.textContent = '▼';
+    if (icon) icon.textContent = '▼';
   }
 }
 
@@ -1160,15 +1169,14 @@ async function loadUserCards() {
   }
 
   try {
-    // Fetch members for this phone
-    const { data: members, error: mErr } = await supabaseClient
-      .from('members_resolved')
-      .select('*')
-      .eq('phone', currentUserPhone)
-      .order('created_at', { ascending: false });
-    if (mErr) throw mErr;
+    // Find all household_ids associated with the logged-in user's phone number
+    const { data: userMembers, error: uErr } = await supabaseClient
+      .from('members')
+      .select('household_id')
+      .eq('phone', currentUserPhone);
+    if (uErr) throw uErr;
 
-    if (!members || members.length === 0) {
+    if (!userMembers || userMembers.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
           <span class="empty-icon">💳</span>
@@ -1176,6 +1184,17 @@ async function loadUserCards() {
         </div>`;
       return;
     }
+
+    const householdIds = [...new Set(userMembers.map(m => m.household_id).filter(Boolean))];
+
+    // Fetch all members belonging to those households from members_resolved view
+    const { data: members, error: mErr } = await supabaseClient
+      .from('members_resolved')
+      .select('*')
+      .in('household_id', householdIds)
+      .order('is_head', { ascending: false }) // Show Head first
+      .order('created_at', { ascending: true });
+    if (mErr) throw mErr;
 
     // Fetch card images for these member_ids
     const memberIds = members.map(m => m.member_id).filter(Boolean);
