@@ -653,9 +653,12 @@ async function onPincodeChange(cardPrefix) {
       districtId = lookup.districtId;
       talukId = lookup.talukId;
     } else {
-      // Fetch from public India Postal Pincode API
-      const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-      const data = await res.json();
+      // Fetch from public India Postal Pincode API via CORS proxy to bypass browser restrictions
+      const targetUrl = `https://api.postalpincode.in/pincode/${pincode}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+      const res = await fetch(proxyUrl);
+      const wrapper = await res.json();
+      const data = JSON.parse(wrapper.contents);
       
       if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
         const po = data[0].PostOffice[0];
