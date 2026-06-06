@@ -20,7 +20,7 @@
 <div id="splash-screen" class="splash-screen">
   <div class="splash-content">
     <div class="splash-card">
-      <img src="assets/rishi.jpg" alt="Sri Taralabalu Jagadguru" class="splash-card-img">
+      <img src="assets/splash.jpg" alt="Sri Taralabalu Jagadguru" class="splash-card-img">
     </div>
     <div class="splash-title">
       <h1>ತರಳಬಾಳು ಶಿಷ್ಯ ಮಂಡಳಿ</h1>
@@ -32,113 +32,73 @@
     </div>
     <p class="splash-tagline">ಶ್ರೀ ತರಳಬಾಳು ಜಗದ್ಗುರು ಬೃಹನ್ಮಠ, ಸಿರಿಗೆರೆ</p>
   </div>
-  <div class="splash-bg-effects">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-  </div>
 </div>
 
 <!-- ============ LOGIN PAGE ============ -->
 <div id="login-page" class="page hidden">
   <div class="login-container">
-    <div class="login-left">
-      <div class="login-brand">
-        <div class="brand-icon-oval">
-          <img src="assets/temple.jpg" alt="Sirigere Mutt" class="brand-oval-img">
-        </div>
-        <div>
-          <h2>ತರಳಬಾಳು ಶಿಷ್ಯ ಮಂಡಳಿ</h2>
-          <h3>Taralabalu Shishya Mandali</h3>
+    <div class="login-form-container">
+      <!-- Pulsing brand logo -->
+      <div class="login-logo-pulsing">
+        <div class="login-logo-inner">
+          <img src="assets/app_icon.jpg" alt="Logo" class="login-logo-img">
         </div>
       </div>
-      <div class="login-info">
-        <div class="guru-portrait">
-          <img src="assets/temple.jpg" alt="Sirigere Mutt" class="guru-portrait-img">
+
+      <!-- Step 1: Phone Number -->
+      <div id="phone-step" class="form-step active">
+        <div class="form-header">
+          <h2>ಲಾಗಿನ್ / Login</h2>
+          <p>ಮುಂದುವರೆಯಲು ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ <br> Enter registered mobile number to continue</p>
         </div>
-        <h1>ನೋಂದಣಿ ಮತ್ತು ಮಾಹಿತಿ ವೇದಿಕೆ<br><span class="gradient-text">Registration & Info Portal</span></h1>
-        <p>ಶ್ರೀ ಜಗದ್ಗುರು ತರಳಬಾಳು ಬೃಹನ್ಮಠದ ಸದಸ್ಯರ ಪವಿತ್ರ ನೋಂದಣಿ ಕಾರ್ಯಕ್ಕೆ ಸುಸ್ವಾಗತ.</p>
-        <div class="login-stats">
-          <div class="stat-card">
-            <div class="stat-number">10K+</div>
-            <div class="stat-label">ಕುಟುಂಬಗಳು / Households</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number">50K+</div>
-            <div class="stat-label">ಶಿಷ್ಯರು / Shishyas</div>
-          </div>
-        </div>
-      </div>
-      <div class="left-bg-effects">
-        <div class="left-orb left-orb-1"></div>
-      </div>
-    </div>
-    <div class="login-right">
-      <div class="login-top-bar">
-        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme">
-          <span class="theme-icon">🌙</span>
-        </button>
-      </div>
-      <div class="login-form-container">
-        <!-- Step 1: Phone Number -->
-        <div id="phone-step" class="form-step active">
-          <div class="form-header">
-            <h2>ಲಾಗಿನ್ / Login</h2>
-            <p>ಮುಂದುವರೆಯಲು ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ <br> Enter registered mobile number to continue</p>
-          </div>
-          <div class="role-selector">
-            <button id="btn-user-role" class="role-btn active" onclick="selectRole('user')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              ಸ್ವಯಂಸೇವಕ / Volunteer
-            </button>
-            <button id="btn-admin-role" class="role-btn" onclick="selectRole('admin')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              ನಿರ್ವಾಹಕರು / Admin
-            </button>
-          </div>
-          <div class="form-group">
-            <label class="form-label">ಮೊಬೈಲ್ ಸಂಖ್ಯೆ / Mobile Number</label>
+        <div class="form-group">
+          <label class="form-label">ಮೊಬೈಲ್ ಸಂಖ್ಯೆ / Mobile Number</label>
+          <div class="phone-field-wrapper">
             <div class="phone-input-wrapper">
               <span class="country-code">+91</span>
-              <input type="tel" id="phone-input" class="form-input phone-input" placeholder="Enter 10-digit number" maxlength="10" oninput="validatePhone()">
+              <input type="tel" id="phone-input" class="phone-input" placeholder="Enter 10-digit number" maxlength="10" oninput="validatePhone()">
             </div>
-            <span id="phone-error" class="error-msg hidden">ದಯವಿಟ್ಟು 10 ಅಂಕಿಗಳ ಸರಿಯಾದ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ / Enter valid 10-digit number</span>
           </div>
-          <button id="send-otp-btn" class="btn-primary" onclick="sendOTP()" disabled>
-            <span>ಒಟಿಪಿ ಪಡೆಯಿರಿ / Send OTP</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </button>
-          <p class="form-note">ಪರಿಶೀಲನೆಗಾಗಿ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಗೆ ಒಟಿಪಿ ಕಳುಹಿಸಲಾಗುವುದು / An OTP will be sent to your mobile number</p>
+          <span id="phone-error" class="error-msg hidden">ದಯವಿಟ್ಟು 10 ಅಂಕಿಗಳ ಸರಿಯಾದ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ / Enter valid 10-digit number</span>
         </div>
+        <button id="send-otp-btn" class="btn-primary btn-login-purple" onclick="sendOTP()" disabled>
+          <span>ಒಟಿಪಿ ಪಡೆಯಿರಿ / Send OTP</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <p class="form-note">ಪರಿಶೀಲನೆಗಾಗಿ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಗೆ ಒಟಿಪಿ ಕಳುಹಿಸಲಾಗುವುದು / An OTP will be sent to your mobile number</p>
+      </div>
 
-        <!-- Step 2: OTP Verification -->
-        <div id="otp-step" class="form-step">
-          <div class="back-btn-wrap">
-            <button class="back-btn" onclick="goBackToPhone()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-              ಹಿಂದಕ್ಕೆ / Back
-            </button>
-          </div>
-          <div class="form-header">
-            <h2>ಒಟಿಪಿ ಪರಿಶೀಲನೆ / Verify OTP</h2>
-            <p id="otp-subtitle">ನಿಮ್ಮ ಸಂಖ್ಯೆಗೆ ಕಳುಹಿಸಲಾದ ಒಟಿಪಿ ನಮೂದಿಸಿ / Enter OTP sent to <strong id="display-phone"></strong></p>
-          </div>
-          <div class="otp-container">
-            <input type="text" class="otp-input" maxlength="1" id="otp-0" oninput="otpInput(0)" onkeydown="otpKeydown(event, 0)">
-            <input type="text" class="otp-input" maxlength="1" id="otp-1" oninput="otpInput(1)" onkeydown="otpKeydown(event, 1)">
-            <input type="text" class="otp-input" maxlength="1" id="otp-2" oninput="otpInput(2)" onkeydown="otpKeydown(event, 2)">
-            <input type="text" class="otp-input" maxlength="1" id="otp-3" oninput="otpInput(3)" onkeydown="otpKeydown(event, 3)">
-            <input type="text" class="otp-input" maxlength="1" id="otp-4" oninput="otpInput(4)" onkeydown="otpKeydown(event, 4)">
-            <input type="text" class="otp-input" maxlength="1" id="otp-5" oninput="otpInput(5)" onkeydown="otpKeydown(event, 5)">
+      <!-- Step 2: OTP Verification -->
+      <div id="otp-step" class="form-step">
+        <div class="back-btn-wrap">
+          <button class="back-btn" onclick="goBackToPhone()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            ಹಿಂದಕ್ಕೆ / Back
+          </button>
+        </div>
+        <div class="form-header">
+          <h2>ಒಟಿಪಿ ಪರಿಶೀಲನೆ / Verify OTP</h2>
+          <p id="otp-subtitle">ನಿಮ್ಮ ಸಂಖ್ಯೆಗೆ ಕಳುಹಿಸಲಾದ ಒಟಿಪಿ ನಮೂದಿಸಿ / Enter OTP sent to <strong id="display-phone"></strong></p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ಒಟಿಪಿ ಸಂಖ್ಯೆ / OTP Code</label>
+          <div class="otp-field-wrapper">
+            <div class="otp-input-wrapper">
+              <span class="otp-icon-prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input type="text" id="otp-input-single" class="otp-input-single" placeholder="------" maxlength="6" oninput="validateSingleOTP()">
+            </div>
           </div>
           <span id="otp-error" class="error-msg hidden">ತಪ್ಪು ಒಟಿಪಿ. ದಯವಿಟ್ಟು ಮತ್ತೊಮ್ಮೆ ಪ್ರಯತ್ನಿಸಿ / Invalid OTP. Please try again.</span>
-          <button class="btn-primary" id="verify-otp-btn" onclick="verifyOTP()">
-            <span>ಖಚಿತಪಡಿಸಿ / Verify & Login</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-          <div class="resend-otp">
-            <span>ಒಟಿಪಿ ಬಂದಿಲ್ಲವೇ? / Didn't receive?</span>
-            <button id="resend-btn" class="resend-link" onclick="resendOTP()">ಮರುಕಳುಹಿಸಿ / Resend OTP</button>
-          </div>
+        </div>
+        <button class="btn-primary btn-login-orange" id="verify-otp-btn" onclick="verifyOTP()" disabled>
+          <span>ಖಚಿತಪಡಿಸಿ / Verify & Login</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <div class="resend-otp">
+          <span>ಒಟಿಪಿ ಬಂದಿಲ್ಲವೇ? / Didn't receive?</span>
+          <button id="resend-btn" class="resend-link" onclick="resendOTP()">ಮರುಕಳುಹಿಸಿ / Resend OTP</button>
         </div>
       </div>
     </div>
@@ -148,75 +108,23 @@
 <!-- ============ USER DASHBOARD ============ -->
 <div id="user-dashboard" class="page hidden">
   <div class="app-layout">
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-brand">
-          <div class="sidebar-logo">
-            <img src="assets/temple.jpg" alt="Logo" style="width: 24px; height: 24px; object-fit: contain;">
-          </div>
-          <span>ಶಿಷ್ಯ ಮಂಡಳಿ / Shishya Mandali</span>
-        </div>
-        <button class="sidebar-close" onclick="toggleSidebar()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="sidebar-user">
-        <div class="user-avatar">
-          <span id="user-avatar-text">S</span>
-        </div>
-        <div class="user-info">
-          <div id="sidebar-user-name" class="user-name">ಸದಸ್ಯ / User</div>
-          <div id="sidebar-user-phone" class="user-phone">+91 XXXXXXXXXX</div>
-        </div>
-      </div>
-      <nav class="sidebar-nav">
-        <a href="#" class="nav-item active" onclick="showSection('dashboard-home', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ / Dashboard
-        </a>
-        <a href="#" class="nav-item" onclick="showSection('my-households', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          ಕುಟುಂಬಗಳು / Households
-        </a>
-        <a href="#" class="nav-item" onclick="showSection('add-household', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          ಕುಟುಂಬ ಸೇರಿಸಿ / Add Household
-        </a>
-        <a href="#" class="nav-item" onclick="showSection('view-cards', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          ಕಾರ್ಡ್‌ಗಳು / ID Cards
-        </a>
-        <a href="#" class="nav-item" onclick="showSection('my-profile', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          ನನ್ನ ವಿವರ / My Profile
-        </a>
-      </nav>
-      <div class="sidebar-footer">
-        <button class="logout-btn" onclick="logout()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          ನಿರ್ಗಮನ / Logout
-        </button>
-      </div>
-    </aside>
-    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
-
     <!-- Main Content -->
     <main class="main-content">
       <header class="app-header">
-        <button class="menu-btn" onclick="toggleSidebar()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
-        <div class="header-title" id="page-title">ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ / Dashboard</div>
+        <div class="header-title" id="page-title" style="color: #009688;">ತರಳಬಾಳು ಶಿಷ್ಯ ಮಂಡಳಿ / Shishya Mandali</div>
         <div class="header-actions">
-          <button class="theme-toggle" onclick="toggleTheme()" style="margin-right: 12px;">
+          <button class="theme-toggle" onclick="toggleTheme()" style="margin-right: 8px;">
             <span class="theme-icon">🌙</span>
           </button>
-          <div class="header-user" onclick="showSection('my-profile', document.querySelector('.nav-item:nth-child(5)'))">
+          <div class="header-user" onclick="showSection('my-profile', document.querySelector('.bottom-nav-item:nth-child(3)'))" style="margin-right: 8px;">
             <div class="header-avatar">
               <span id="header-avatar-text">S</span>
             </div>
           </div>
+          <!-- Top Logout button directly in header -->
+          <button class="theme-toggle" onclick="logout()" title="Logout" style="background: rgba(211,47,47,0.1); border-color: rgba(211,47,47,0.2); color: #d32f2f;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
         </div>
       </header>
 
@@ -545,31 +453,48 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label">ರಾಜ್ಯ / State</label>
-                  <select id="head-state" class="form-select">
+                  <select id="head-state" class="form-select" onchange="onStateChanged('head')">
                     <option value="">ರಾಜ್ಯ ಆಯ್ಕೆಮಾಡಿ / Select State</option>
                     <option value="Karnataka">ಕರ್ನಾಟಕ / Karnataka</option>
                     <option value="Maharashtra">ಮಹಾರಾಷ್ಟ್ರ / Maharashtra</option>
-                    <option value="Telangana">ತೆಲಂಗಾಣ / Telangana</option>
-                    <option value="Andhra Pradesh">ಆಂಧ್ರ ಪ್ರದೇಶ / Andhra Pradesh</option>
-                    <option value="Tamil Nadu">ತಮಿಳುನಾಡು / Tamil Nadu</option>
-                    <option value="Kerala">ಕೇರಳ / Kerala</option>
                   </select>
                 </div>
                 <div class="form-group">
                   <label class="form-label">ಜಿಲ್ಲೆ / District</label>
-                  <input type="text" id="head-district" class="form-input" placeholder="Enter district">
+                  <select id="head-district" class="form-select" onchange="onDistrictChanged('head')">
+                    <option value="">ಜಿಲ್ಲೆ ಆಯ್ಕೆಮಾಡಿ / Select District</option>
+                  </select>
                 </div>
                 <div class="form-group">
                   <label class="form-label">ತಾಲ್ಲೂಕು / Taluk / Mandal</label>
-                  <input type="text" id="head-taluk" class="form-input" placeholder="Enter taluk">
+                  <select id="head-taluk" class="form-select">
+                    <option value="">ತಾಲ್ಲೂಕು ಆಯ್ಕೆಮಾಡಿ / Select Taluk</option>
+                  </select>
                 </div>
                 <div class="form-group">
                   <label class="form-label">ನಗರ / Nagara / Town</label>
-                  <input type="text" id="head-nagara" class="form-input" placeholder="Enter nagara/town">
+                  <select id="head-nagara" class="form-select">
+                    <option value="">ನಗರ ಆಯ್ಕೆಮಾಡಿ / Select Nagara</option>
+                    <option value="Nagara 1">Nagara 1</option>
+                    <option value="Nagara 2">Nagara 2</option>
+                    <option value="Nagara 3">Nagara 3</option>
+                    <option value="Nagara 4">Nagara 4</option>
+                    <option value="Nagara 5">Nagara 5</option>
+                  </select>
                 </div>
                 <div class="form-group">
                   <label class="form-label">ವಾರ್ಡ್ / ಗ್ರಾಮ / Ward / Village</label>
-                  <input type="text" id="head-ward" class="form-input" placeholder="Enter ward/village">
+                  <select id="head-ward" class="form-select">
+                    <option value="">ವಾರ್ಡ್ ಆಯ್ಕೆಮಾಡಿ / Select Ward</option>
+                    <option value="Ward 1">Ward 1</option>
+                    <option value="Ward 2">Ward 2</option>
+                    <option value="Ward 3">Ward 3</option>
+                    <option value="Ward 4">Ward 4</option>
+                    <option value="Ward 5">Ward 5</option>
+                    <option value="Ward 6">Ward 6</option>
+                    <option value="Ward 7">Ward 7</option>
+                    <option value="Ward 8">Ward 8</option>
+                  </select>
                 </div>
               </div>
               <div class="wizard-nav">
@@ -689,77 +614,40 @@
         </div>
       </section>
     </main>
+    <!-- Volunteer Bottom Navigation -->
+    <nav class="bottom-nav">
+      <button class="bottom-nav-item active" onclick="showSection('add-household', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Fill Form</span>
+      </button>
+      <button class="bottom-nav-item" onclick="showSection('view-cards', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>View Cards</span>
+      </button>
+      <button class="bottom-nav-item" onclick="showSection('dashboard-home', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Welcome</span>
+      </button>
+    </nav>
   </div>
 </div>
 
 <!-- ============ ADMIN DASHBOARD ============ -->
 <div id="admin-dashboard" class="page hidden">
   <div class="app-layout">
-    <!-- Admin Sidebar -->
-    <aside class="sidebar admin-sidebar" id="admin-sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-brand">
-          <div class="sidebar-logo">
-            <img src="assets/temple.jpg" alt="Logo" style="width: 24px; height: 24px; object-fit: contain;">
-          </div>
-          <span>ನಿರ್ವಾಹಕರು / Admin</span>
-        </div>
-        <button class="sidebar-close" onclick="toggleAdminSidebar()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="sidebar-user">
-        <div class="user-avatar admin-avatar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </div>
-        <div class="user-info">
-          <div class="user-name">ನಿರ್ವಾಹಕರು / Administrator</div>
-          <div id="admin-phone-display" class="user-phone">+91 XXXXXXXXXX</div>
-        </div>
-      </div>
-      <nav class="sidebar-nav">
-        <a href="#" class="nav-item active" onclick="showAdminSection('admin-overview', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          ಅವಲೋಕನ / Overview
-        </a>
-        <a href="#" class="nav-item" onclick="showAdminSection('admin-households', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-          ಕುಟುಂಬಗಳು / Households
-        </a>
-        <a href="#" class="nav-item" onclick="showAdminSection('admin-enumerators', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          ಸ್ವಯಂಸೇವಕರು / Volunteers
-        </a>
-        <a href="#" class="nav-item" onclick="showAdminSection('admin-messages', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          ಸಂದೇಶಗಳು / Messages
-        </a>
-        <a href="#" class="nav-item" onclick="showAdminSection('admin-reports', this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          ವರದಿಗಳು / Reports
-        </a>
-      </nav>
-      <div class="sidebar-footer">
-        <button class="logout-btn" onclick="logout()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          ಲಾಗ್ ಔಟ್ / Logout
-        </button>
-      </div>
-    </aside>
-    <div class="sidebar-overlay" id="admin-sidebar-overlay" onclick="toggleAdminSidebar()"></div>
-
     <!-- Admin Main Content -->
     <main class="main-content">
       <header class="app-header admin-header">
-        <button class="menu-btn" onclick="toggleAdminSidebar()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
-        <div class="header-title" id="admin-page-title">ಅವಲೋಕನ / Overview</div>
+        <div class="header-title" id="admin-page-title" style="color: #37474F;">ನಿರ್ವಾಹಕರು / Administrator</div>
         <div class="header-actions">
-          <button class="theme-toggle" onclick="toggleTheme()" style="margin-right: 12px;">
+          <button class="theme-toggle" onclick="toggleTheme()" style="margin-right: 8px;">
             <span class="theme-icon">🌙</span>
           </button>
-          <div class="admin-badge">ADMIN</div>
+          <div class="admin-badge" style="margin-right: 8px;">ADMIN</div>
+          <!-- Top Logout button directly in header -->
+          <button class="theme-toggle" onclick="logout()" title="Logout" style="background: rgba(211,47,47,0.1); border-color: rgba(211,47,47,0.2); color: #d32f2f;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
         </div>
       </header>
 
@@ -962,6 +850,17 @@
         </div>
       </section>
     </main>
+    <!-- Admin Bottom Navigation -->
+    <nav class="bottom-nav">
+      <button class="bottom-nav-item active" onclick="showAdminSection('admin-households', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Households</span>
+      </button>
+      <button class="bottom-nav-item" onclick="showAdminSection('admin-messages', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Messages</span>
+      </button>
+    </nav>
   </div>
 </div>
 
@@ -984,6 +883,7 @@
   <div class="toast-message"></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="app.js?v=118" defer></script>
 </body>
 </html>

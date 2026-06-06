@@ -3,8 +3,8 @@
    ===================================================== */
 
 // ── SUPABASE CONFIG ───────────────────────────────────
-const SUPABASE_URL      = 'https://pkvlongnjdfojkrttcjl.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrdmxvbmduamRmb2prcnR0Y2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Njc5NTgsImV4cCI6MjA5NjE0Mzk1OH0.kjLoJ9hBR8XbxLpuiPCZ0viDhPywPR_AGLJ7zxhXi-0';
+const SUPABASE_URL      = 'https://ysgzawhxxovcatlhcbrb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZ3phd2h4eG92Y2F0bGhjYnJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2OTQyOTAsImV4cCI6MjA5NjI3MDI5MH0.BOpQt3pA5P4Oj2YE2sKTHY2Gy0_UDHqTOqJzz00tp0Y';
 
 // ── CONSTANTS ──────────────────────────────────────────
 const USER_OTP  = '123456';
@@ -25,6 +25,22 @@ const PINCODE_MAP = {
   '577541': { state: 'Karnataka', district: 'Chitradurga', taluk: 'Hiriyur' },
   '577601': { state: 'Karnataka', district: 'Davanagere', taluk: 'Harihar' },
   '577527': { state: 'Karnataka', district: 'Chitradurga', taluk: 'Sirigere' }
+};
+
+// Cascading District and Taluk Lookup Data
+const LOCATION_DATA = {
+  'Karnataka': {
+    'Davanagere': ['Davanagere', 'Harihar', 'Honnali', 'Channagiri', 'Jagalur'],
+    'Chitradurga': ['Chitradurga', 'Sirigere', 'Holalkere', 'Hosadurga', 'Hiriyur', 'Challakere', 'Molakalmuru'],
+    'Bangalore': ['Bangalore North', 'Bangalore South', 'Bangalore East', 'Bangalore West', 'Anekal'],
+    'Mysore': ['Mysore', 'Nanjangud', 'T. Narasipura', 'H.D. Kote', 'Hunsur', 'K.R. Nagar', 'Periyapatna'],
+    'Hubli': ['Hubli City', 'Hubli Rural', 'Dharwad', 'Kalghatgi', 'Kundgol', 'Navalgund']
+  },
+  'Maharashtra': {
+    'Mumbai': ['Mumbai City', 'Mumbai Suburban'],
+    'Pune': ['Pune City', 'Haveli', 'Khed', 'Baramati', 'Shirur', 'Maval'],
+    'Nagpur': ['Nagpur City', 'Nagpur Rural', 'Kamptee', 'Ramtek', 'Hingna', 'Umred']
+  }
 };
 
 // ── Supabase Client (loaded via CDN dynamically) ──────
@@ -69,6 +85,7 @@ function loadSupabaseSDK() {
 // ── STATE ──────────────────────────────────────────────
 let currentRole   = 'user';
 let currentPhone  = '';
+let enumeratorUuid = null;
 let memberCount   = 0;
 let currentStep   = 1;
 let householdsDB  = [];
@@ -166,37 +183,170 @@ function saveLocalDB() {
 async function sbRegisterEnumerator(phone) {
   if (!isOnline) return;
   const { error } = await supabase.from('enumerators').upsert(
-    { phone, name: 'Enumerator' },
-    { onConflict: 'phone', ignoreDuplicates: true }
+    { phone, name: 'Volunteer' },
+    { onConflict: 'phone' }
   );
   if (error) console.error('Register enumerator error:', error);
+}
+
+// Helper: Get Enumerator UUID
+async function getEnumeratorUuid(phone) {
+  if (!isOnline) return null;
+  try {
+    const { data, error } = await supabase
+      .from('enumerators')
+      .select('id')
+      .eq('phone', phone)
+      .maybeSingle();
+      
+    if (error) {
+      console.error('Error fetching enumerator UUID:', error);
+      return null;
+    }
+    
+    if (data) {
+      return data.id;
+    }
+    
+    // Auto register if not exists
+    const { data: newData, error: insertError } = await supabase
+      .from('enumerators')
+      .insert({ phone, name: 'Volunteer' })
+      .select('id')
+      .single();
+      
+    if (insertError) {
+      console.error('Error auto-registering enumerator:', insertError);
+      return null;
+    }
+    return newData.id;
+  } catch (e) {
+    console.error('Exception in getEnumeratorUuid:', e);
+    return null;
+  }
+}
+
+// Helper: Upload Base64 Image to Storage Bucket
+async function uploadBase64Image(base64Data, filename) {
+  if (!isOnline || !base64Data || !base64Data.startsWith('data:')) return base64Data;
+  
+  try {
+    const parts = base64Data.split(';base64,');
+    const contentType = parts[0].split(':')[1];
+    const raw = window.atob(parts[1]);
+    const rawLength = raw.length;
+    const uInt8Array = new Uint8Array(rawLength);
+    
+    for (let i = 0; i < rawLength; ++i) {
+      uInt8Array[i] = raw.charCodeAt(i);
+    }
+    
+    const blob = new Blob([uInt8Array], { type: contentType });
+    
+    const { data, error } = await supabase.storage
+      .from('profile-images')
+      .upload(filename, blob, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: contentType
+      });
+      
+    if (error) {
+      console.error('Storage upload error:', error);
+      return base64Data; // Fallback to base64
+    }
+    
+    const { data: publicUrlData } = supabase.storage
+      .from('profile-images')
+      .getPublicUrl(filename);
+      
+    return publicUrlData.publicUrl;
+  } catch(e) {
+    console.error('Upload exception:', e);
+    return base64Data;
+  }
+}
+
+// Helper: Group members view list into structured household objects
+function groupMembersIntoHouseholds(membersList) {
+  const hhMap = new Map();
+  
+  // Sort head first, then by sequential_id
+  const sortedMembers = [...membersList].sort((a, b) => {
+    if (a.is_head && !b.is_head) return -1;
+    if (!a.is_head && b.is_head) return 1;
+    return (a.sequential_id || 99) - (b.sequential_id || 99);
+  });
+  
+  sortedMembers.forEach(m => {
+    const hhId = m.household_id;
+    if (!hhMap.has(hhId)) {
+      hhMap.set(hhId, {
+        id: hhId,
+        enumeratorPhone: currentPhone,
+        createdAt: m.household_created_at || m.created_at,
+        head: null,
+        members: []
+      });
+    }
+    
+    const hh = hhMap.get(hhId);
+    const normalizedPerson = {
+      id: m.id,
+      name: m.name || '',
+      relationship: m.relationship || '',
+      dob: m.date_of_birth || '',
+      age: m.age || '',
+      gender: m.gender || '',
+      aadhaar_number: m.aadhar_number || '', // Note: DB column is aadhar_number (without second 'a')
+      mobile_number: m.mobile_number || '',
+      marital_status: m.marital_status || '',
+      education: m.education || '',
+      employment_sector: m.employment_sector || '',
+      occupation: m.occupation || '',
+      traditional_occupation: m.traditional_occupation || '',
+      country: m.country || 'India',
+      state: m.state || '',
+      district: m.district || '',
+      taluk: m.taluk || '',
+      nagara: m.nagara || '',
+      ward: m.ward || '',
+      pincode: m.pincode || '',
+      profile_image_url: m.profile_image_url || '',
+      sequential_id: m.sequential_id
+    };
+    
+    if (m.is_head) {
+      hh.head = normalizedPerson;
+    } else {
+      hh.members.push(normalizedPerson);
+    }
+  });
+  
+  return Array.from(hhMap.values()).filter(h => h.head !== null);
 }
 
 // ─── SUPABASE: Fetch enumerator's households ──────────
 async function sbFetchMyHouseholds(phone) {
   if (!isOnline) return getMyHouseholdsLocal();
   try {
-    const { data: hh, error: hhErr } = await supabase
-      .from('households')
-      .select('*')
-      .eq('enumerator_phone', phone)
-      .order('created_at', { ascending: false });
-
-    if (hhErr) { console.error(hhErr); return getMyHouseholdsLocal(); }
-
-    const result = [];
-    for (const h of hh) {
-      const { data: members } = await supabase
-        .from('household_members')
-        .select('*')
-        .eq('household_id', h.id)
-        .order('is_head', { ascending: false });
-
-      const head    = members?.find(m => m.is_head) || {};
-      const others  = members?.filter(m => !m.is_head) || [];
-      result.push(normalizeHousehold(h, head, others));
+    if (!enumeratorUuid) {
+      enumeratorUuid = await getEnumeratorUuid(phone);
     }
-    return result;
+    if (!enumeratorUuid) return getMyHouseholdsLocal();
+    
+    const { data: members, error } = await supabase
+      .from('household_members')
+      .select('*')
+      .eq('household_user_id', enumeratorUuid)
+      .order('household_created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching my households from view:', error);
+      return getMyHouseholdsLocal();
+    }
+    
+    return groupMembersIntoHouseholds(members || []);
   } catch(e) {
     console.error('Fetch my households error:', e);
     return getMyHouseholdsLocal();
@@ -207,26 +357,17 @@ async function sbFetchMyHouseholds(phone) {
 async function sbFetchAllHouseholds() {
   if (!isOnline) return householdsDB;
   try {
-    const { data: hh, error } = await supabase
-      .from('households')
+    const { data: members, error } = await supabase
+      .from('household_members')
       .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) { console.error(error); return householdsDB; }
-
-    const result = [];
-    for (const h of hh) {
-      const { data: members } = await supabase
-        .from('household_members')
-        .select('*')
-        .eq('household_id', h.id)
-        .order('is_head', { ascending: false });
-
-      const head   = members?.find(m => m.is_head) || {};
-      const others = members?.filter(m => !m.is_head) || [];
-      result.push(normalizeHousehold(h, head, others));
+      .order('household_created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching all households from view:', error);
+      return householdsDB;
     }
-    return result;
+    
+    return groupMembersIntoHouseholds(members || []);
   } catch(e) {
     console.error('Fetch all households error:', e);
     return householdsDB;
@@ -241,7 +382,10 @@ async function sbFetchAllEnumerators() {
       .from('enumerators')
       .select('*')
       .order('joined_at', { ascending: false });
-    if (error) { console.error(error); return enumeratorsDB; }
+    if (error) {
+      console.error(error);
+      return enumeratorsDB;
+    }
     return data || [];
   } catch(e) {
     console.error('Fetch all enumerators error:', e);
@@ -258,30 +402,84 @@ async function sbSubmitHousehold(payload) {
   }
 
   try {
+    if (!enumeratorUuid) {
+      enumeratorUuid = await getEnumeratorUuid(payload.enumeratorPhone);
+    }
+    if (!enumeratorUuid) return { success: false, error: 'Could not resolve volunteer ID' };
+
     // 1. Insert household row
     const { data: hhRow, error: hhErr } = await supabase
       .from('households')
-      .insert({ enumerator_phone: payload.enumeratorPhone })
+      .insert({ user_id: enumeratorUuid })
       .select()
       .single();
 
     if (hhErr) return { success: false, error: hhErr.message };
 
-    // 2. Build members array (head first)
-    const membersToInsert = [
-      { household_id: hhRow.id, ...flattenMember(payload.head, true) },
-      ...(payload.members || []).map(m => ({ household_id: hhRow.id, ...flattenMember(m, false) }))
-    ].filter(m => m.name);
+    const hhId = hhRow.id;
 
-    const { error: mErr } = await supabase.from('household_members').insert(membersToInsert);
+    // 2. Upload head photo if base64
+    if (payload.head.profile_image_url && payload.head.profile_image_url.startsWith('data:')) {
+      const filename = `head_${hhId}_${Date.now()}.jpg`;
+      payload.head.profile_image_url = await uploadBase64Image(payload.head.profile_image_url, filename);
+    }
+
+    // 3. Upload members photos if base64
+    if (payload.members && payload.members.length > 0) {
+      for (let i = 0; i < payload.members.length; i++) {
+        const m = payload.members[i];
+        if (m.profile_image_url && m.profile_image_url.startsWith('data:')) {
+          const filename = `member_${hhId}_${i}_${Date.now()}.jpg`;
+          m.profile_image_url = await uploadBase64Image(m.profile_image_url, filename);
+        }
+      }
+    }
+
+    // 4. Build members array (head first) with sequential_id
+    const membersToInsert = [];
+    
+    // Head has sequential_id = 1
+    membersToInsert.push({
+      household_id: hhId,
+      sequential_id: 1,
+      ...flattenMember(payload.head, true)
+    });
+
+    // Members have sequential_id = 2, 3, etc. and inherit location from Head
+    (payload.members || []).forEach((m, idx) => {
+      if (m.name) {
+        const memberData = {
+          ...m,
+          country: payload.head.country,
+          state: payload.head.state,
+          district: payload.head.district,
+          taluk: payload.head.taluk,
+          nagara: payload.head.nagara,
+          ward: payload.head.ward,
+          pincode: payload.head.pincode
+        };
+        membersToInsert.push({
+          household_id: hhId,
+          sequential_id: idx + 2,
+          ...flattenMember(memberData, false)
+        });
+      }
+    });
+
+    const { error: mErr } = await supabase
+      .from('persons')
+      .insert(membersToInsert);
+      
     if (mErr) return { success: false, error: mErr.message };
 
-    // Also cache locally
-    payload.id = hhRow.id;
+    // Update payload with new DB ID
+    payload.id = hhId;
+    
+    // Cache locally
     householdsDB.push(payload);
     saveLocalDB();
 
-    return { success: true, id: hhRow.id };
+    return { success: true, id: hhId };
   } catch(e) {
     return { success: false, error: e.message };
   }
@@ -299,7 +497,7 @@ function normalizeHousehold(h, head, members) {
       dob:                    head.date_of_birth || '',
       age:                    head.age || '',
       gender:                 head.gender || '',
-      aadhaar_number:         head.aadhaar_number || '',
+      aadhaar_number:         head.aadhar_number || '',
       mobile_number:          head.mobile_number || '',
       marital_status:         head.marital_status || '',
       education:              head.education || '',
@@ -321,7 +519,7 @@ function normalizeHousehold(h, head, members) {
       dob:                    m.date_of_birth || '',
       age:                    m.age || '',
       gender:                 m.gender || '',
-      aadhaar_number:         m.aadhaar_number || '',
+      aadhaar_number:         m.aadhar_number || '',
       mobile_number:          m.mobile_number || '',
       marital_status:         m.marital_status || '',
       education:              m.education || '',
@@ -341,7 +539,7 @@ function flattenMember(m, isHead) {
     date_of_birth:          m.dob || null,
     age:                    m.age ? parseInt(m.age) : null,
     gender:                 m.gender || null,
-    aadhaar_number:         m.aadhaar_number || null,
+    aadhar_number:          m.aadhaar_number || null, // Map to DB column aadhar_number
     mobile_number:          m.mobile_number || null,
     marital_status:         m.marital_status || null,
     education:              m.education || null,
@@ -359,36 +557,7 @@ function flattenMember(m, isHead) {
   };
 }
 
-// ── DATE HELPERS ───────────────────────────────────────
-function updateDate() {
-  const now  = new Date();
-  const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  const str  = now.toLocaleDateString('en-IN', opts);
-  ['current-date','admin-current-date'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = `📅 ${str}`;
-  });
-}
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good Morning';
-  if (h < 17) return 'Good Afternoon';
-  return 'Good Evening';
-}
-
-function formatPhone(p) {
-  if (!p || p.length < 5) return p;
-  return `+91 ${p.slice(0,5)} ${p.slice(5)}`;
-}
-
-// ── LOGIN FLOW ─────────────────────────────────────────
-function selectRole(role) {
-  currentRole = role;
-  document.getElementById('btn-user-role').classList.toggle('active', role === 'user');
-  document.getElementById('btn-admin-role').classList.toggle('active', role === 'admin');
-}
-
+// ── DATE HELPERS ───────────────────// ── LOGIN FLOW ─────────────────────────────────────────
 function validatePhone() {
   const inp   = document.getElementById('phone-input');
   const btn   = document.getElementById('send-otp-btn');
@@ -414,9 +583,15 @@ function sendOTP() {
     step1.style.display = 'none';
     step2.style.display = 'block';
     setTimeout(() => step2.classList.add('active'), 10);
-    document.getElementById('otp-0').focus();
+    const otpInp = document.getElementById('otp-input-single');
+    if (otpInp) {
+      otpInp.value = '';
+      otpInp.focus();
+    }
+    const verifyBtn = document.getElementById('verify-otp-btn');
+    if (verifyBtn) verifyBtn.disabled = true;
   }, 200);
-  showToast('OTP sent! Use: ' + (currentRole === 'admin' ? ADMIN_OTP : USER_OTP), 'info');
+  showToast('OTP sent! Use: 123456 (Volunteer) or 654321 (Admin)', 'info');
 }
 
 function goBackToPhone() {
@@ -427,70 +602,63 @@ function goBackToPhone() {
     step2.style.display = 'none';
     step1.style.display = 'block';
     setTimeout(() => step1.classList.add('active'), 10);
-    clearOTP();
+    const otpInp = document.getElementById('otp-input-single');
+    if (otpInp) otpInp.value = '';
   }, 200);
 }
 
-function otpInput(idx) {
-  const inp = document.getElementById('otp-' + idx);
-  inp.value = inp.value.replace(/\D/g,'').slice(-1);
-  if (inp.value && idx < 5) document.getElementById('otp-' + (idx+1)).focus();
-  inp.classList.toggle('filled', !!inp.value);
-}
-
-// Enable OTP navigation keys
-function otpKeydown(e, idx) {
-  if (e.key === 'Backspace' && !e.target.value && idx > 0) {
-    const prev = document.getElementById('otp-' + (idx-1));
-    prev.value = '';
-    prev.classList.remove('filled');
-    prev.focus();
+function validateSingleOTP() {
+  const inp = document.getElementById('otp-input-single');
+  const btn = document.getElementById('verify-otp-btn');
+  const err = document.getElementById('otp-error');
+  if (!inp || !btn) return;
+  
+  const val = inp.value.replace(/\D/g, '');
+  inp.value = val;
+  
+  const valid = val.length === 6;
+  btn.disabled = !valid;
+  if (valid || val.length === 0) {
+    if (err) err.classList.add('hidden');
   }
-  if (e.key === 'Enter') verifyOTP();
-}
-
-function getEnteredOTP() {
-  return [0,1,2,3,4,5].map(i => document.getElementById('otp-' + i).value).join('');
-}
-
-function clearOTP() {
-  [0,1,2,3,4,5].forEach(i => {
-    const el = document.getElementById('otp-' + i);
-    el.value = '';
-    el.classList.remove('filled');
-  });
 }
 
 async function verifyOTP() {
-  const entered = getEnteredOTP();
-  const correct = currentRole === 'admin' ? ADMIN_OTP : USER_OTP;
+  const inp = document.getElementById('otp-input-single');
+  if (!inp) return;
+  
+  const entered = inp.value.trim();
   const errEl   = document.getElementById('otp-error');
 
-  if (entered.length < 6) { showToast('Please enter all 6 digits', 'error'); return; }
+  if (entered.length < 6) {
+    showToast('Please enter a 6-digit OTP', 'error');
+    return;
+  }
 
-  if (entered !== correct) {
-    errEl.classList.remove('hidden');
-    [0,1,2,3,4,5].forEach(i => {
-      const el = document.getElementById('otp-' + i);
-      el.style.borderColor = 'var(--danger)';
-      el.style.background  = 'rgba(239,68,68,0.1)';
-    });
+  if (entered === USER_OTP) {
+    currentRole = 'user';
+  } else if (entered === ADMIN_OTP) {
+    currentRole = 'admin';
+  } else {
+    if (errEl) errEl.classList.remove('hidden');
+    inp.style.borderColor = 'var(--danger)';
+    inp.style.background  = 'rgba(239,68,68,0.1)';
     setTimeout(() => {
-      [0,1,2,3,4,5].forEach(i => {
-        const el = document.getElementById('otp-' + i);
-        el.style.borderColor = '';
-        el.style.background  = '';
-      });
+      inp.style.borderColor = '';
+      inp.style.background  = '';
     }, 800);
     return;
   }
 
-  errEl.classList.add('hidden');
+  if (errEl) errEl.classList.add('hidden');
 
   const btn = document.getElementById('verify-otp-btn');
   if (btn) { btn.disabled = true; btn.querySelector('span').textContent = 'Signing in...'; }
 
-  if (currentRole === 'user') await sbRegisterEnumerator(currentPhone);
+  if (currentRole === 'user') {
+    await sbRegisterEnumerator(currentPhone);
+    enumeratorUuid = await getEnumeratorUuid(currentPhone);
+  }
 
   // Save Session in localStorage
   localStorage.setItem('tsm_session', JSON.stringify({ phone: currentPhone, role: currentRole }));
@@ -510,9 +678,61 @@ async function verifyOTP() {
 }
 
 function resendOTP() {
-  clearOTP();
-  showToast('OTP resent! Use: ' + (currentRole === 'admin' ? ADMIN_OTP : USER_OTP), 'info');
-  document.getElementById('otp-0').focus();
+  const inp = document.getElementById('otp-input-single');
+  if (inp) {
+    inp.value = '';
+    inp.focus();
+  }
+  const verifyBtn = document.getElementById('verify-otp-btn');
+  if (verifyBtn) verifyBtn.disabled = true;
+  showToast('OTP resent! Use: 123456 (Volunteer) or 654321 (Admin)', 'info');
+}
+
+// ── LOCATION SELECT HANDLERS ─────────────────────────
+function onStateChanged(prefix) {
+  const stateEl = document.getElementById(prefix + '-state');
+  const distEl  = document.getElementById(prefix + '-district');
+  const talukEl = document.getElementById(prefix + '-taluk');
+  
+  if (!stateEl || !distEl || !talukEl) return;
+  
+  const stateVal = stateEl.value;
+  
+  // Clear district and taluk
+  distEl.innerHTML = '<option value="">ಜಿಲ್ಲೆ ಆಯ್ಕೆಮಾಡಿ / Select District</option>';
+  talukEl.innerHTML = '<option value="">ತಾಲ್ಲೂಕು ಆಯ್ಕೆಮಾಡಿ / Select Taluk</option>';
+  
+  if (stateVal && LOCATION_DATA[stateVal]) {
+    Object.keys(LOCATION_DATA[stateVal]).forEach(dist => {
+      const opt = document.createElement('option');
+      opt.value = dist;
+      opt.textContent = dist;
+      distEl.appendChild(opt);
+    });
+  }
+}
+
+function onDistrictChanged(prefix) {
+  const stateEl = document.getElementById(prefix + '-state');
+  const distEl  = document.getElementById(prefix + '-district');
+  const talukEl = document.getElementById(prefix + '-taluk');
+  
+  if (!stateEl || !distEl || !talukEl) return;
+  
+  const stateVal = stateEl.value;
+  const distVal = distEl.value;
+  
+  // Clear taluk
+  talukEl.innerHTML = '<option value="">ತಾಲ್ಲೂಕು ಆಯ್ಕೆಮಾಡಿ / Select Taluk</option>';
+  
+  if (stateVal && distVal && LOCATION_DATA[stateVal] && LOCATION_DATA[stateVal][distVal]) {
+    LOCATION_DATA[stateVal][distVal].forEach(taluk => {
+      const opt = document.createElement('option');
+      opt.value = taluk;
+      opt.textContent = taluk;
+      talukEl.appendChild(opt);
+    });
+  }
 }
 
 // ── USER DASHBOARD INIT ────────────────────────────────
@@ -584,7 +804,7 @@ async function initAdminDashboard() {
 // ── NAVIGATION ─────────────────────────────────────────
 async function showSection(id, clickedEl) {
   document.querySelectorAll('#user-dashboard .content-section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('#user-dashboard .nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('#user-dashboard .bottom-nav-item').forEach(n => n.classList.remove('active'));
   
   const target = document.getElementById('section-' + id);
   if (target) target.classList.add('active');
@@ -613,7 +833,7 @@ async function showSection(id, clickedEl) {
 
 async function showAdminSection(id, clickedEl) {
   document.querySelectorAll('#admin-dashboard .content-section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('#admin-sidebar .nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('#admin-dashboard .bottom-nav-item').forEach(n => n.classList.remove('active'));
   
   const target = document.getElementById('section-' + id);
   if (target) target.classList.add('active');
@@ -1004,7 +1224,7 @@ async function submitHousehold() {
     
     // Redirect directly to View Cards tab
     selectedHouseholdForCards = result.id;
-    showSection('view-cards', document.querySelector('#sidebar .nav-item:nth-child(4)'));
+    showSection('view-cards', document.querySelector('.bottom-nav-item:nth-child(2)'));
   } else {
     showToast('❌ Failed: ' + (result.error || 'Unknown error'), 'error');
   }
@@ -1032,7 +1252,7 @@ function renderHouseholdsGrid(hh) {
   const container = document.getElementById('households-grid');
   const list = hh || [];
   if (!list.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div><h3>ಯಾವುದೇ ಕುಟುಂಬಗಳು ಕಂಡುಬಂದಿಲ್ಲ / No Households Added</h3><p>ಪ್ರಥಮ ಕುಟುಂಬದ ವಿವರಗಳನ್ನು ನೋಂದಾಯಿಸಲು ಕೆಳಗಿನ ಬಟನ್ ಕ್ಲಿಕ್ ಮಾಡಿ</p><button class="btn-primary" onclick="showSection('add-household', document.querySelector('#sidebar .nav-item:nth-child(3)'))"><span>ಕುಟುಂಬ ಸೇರಿಸಿ / Add Household</span></button></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div><h3>ಯಾವುದೇ ಕುಟುಂಬಗಳು ಕಂಡುಬಂದಿಲ್ಲ / No Households Added</h3><p>ಪ್ರಥಮ ಕುಟುಂಬದ ವಿವರಗಳನ್ನು ನೋಂದಾಯಿಸಲು ಕೆಳಗಿನ ಬಟನ್ ಕ್ಲಿಕ್ ಮಾಡಿ</p><button class="btn-primary" onclick="showSection('add-household', document.querySelector('.bottom-nav-item:nth-child(1)'))"><span>ಕುಟುಂಬ ಸೇರಿಸಿ / Add Household</span></button></div>`;
     return;
   }
   container.innerHTML = list.map(h => householdCardHTML(h)).join('');
@@ -1365,7 +1585,7 @@ async function renderIDCardsSection() {
         <div class="empty-icon">📇</div>
         <h3>ಯಾವುದೇ ಕಾರ್ಡ್‌ಗಳಿಲ್ಲ / No Cards Available</h3>
         <p>ಕಾರ್ಡ್‌ಗಳನ್ನು ಸೃಷ್ಟಿಸಲು ಮೊದಲು ಕುಟುಂಬದ ವಿವರಗಳನ್ನು ನೋಂದಾಯಿಸಿ / Register a household first to generate ID cards.</p>
-        <button class="btn-primary" onclick="showSection('add-household', document.querySelector('#sidebar .nav-item:nth-child(3)'))">
+        <button class="btn-primary" onclick="showSection('add-household', document.querySelector('.bottom-nav-item:nth-child(1)'))">
           <span>ಕುಟುಂಬ ಸೇರಿಸಿ / Add Household</span>
         </button>
       </div>
@@ -1408,11 +1628,11 @@ async function renderIDCardsSection() {
   
   // Generate head and member cards
   const cardsHTML = [];
-  cardsHTML.push(generateSingleCardHTML(targetHH.head, 'Head / ಕುಟುಂಬದ ಮುಖ್ಯಸ್ಥ', targetHH.head.pincode, targetHH));
+  cardsHTML.push(generateSingleCardHTML(targetHH.head, 'Head / ಮುಖ್ಯಸ್ಥ', targetHH.head.pincode, targetHH, 1));
   
   if (targetHH.members && targetHH.members.length > 0) {
-    targetHH.members.forEach(m => {
-      cardsHTML.push(generateSingleCardHTML(m, 'Member / ಕುಟುಂಬದ ಸದಸ್ಯ', targetHH.head.pincode, targetHH));
+    targetHH.members.forEach((m, idx) => {
+      cardsHTML.push(generateSingleCardHTML(m, m.relationship || 'Member / ಸದಸ್ಯ', targetHH.head.pincode, targetHH, idx + 2));
     });
   }
   
@@ -1435,9 +1655,12 @@ function generateMuttID(name, phone, pincode) {
   return `TSM-${pin}-${rand}`;
 }
 
-function generateSingleCardHTML(person, roleText, pincode, hh) {
-  const muttId = generateMuttID(person.name, person.mobile_number, pincode);
-  const phone = person.mobile_number ? formatPhone(person.mobile_number) : 'N/A';
+function generateSingleCardHTML(person, roleText, pincode, hh, seqId) {
+  const muttId = generateMuttID(person.name, person.mobile_number || hh.head.mobile_number, pincode);
+  const phone = person.mobile_number ? formatPhone(person.mobile_number) : (hh.head.mobile_number ? formatPhone(hh.head.mobile_number) : 'N/A');
+  const occupation = person.occupation || 'N/A';
+  const aadhaar = hh.head.aadhaar_number || 'N/A';
+  const district = hh.head.district || 'Sirigere';
   
   const addressParts = [];
   if (hh.head.ward) addressParts.push(hh.head.ward);
@@ -1449,46 +1672,115 @@ function generateSingleCardHTML(person, roleText, pincode, hh) {
   
   const photoSrc = person.profile_image_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23aaa" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>';
   
+  // Clean SVG Icons
+  const iconBriefcase = `<svg class="id-card-row-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>`;
+  const iconPhone = `<svg class="id-card-row-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>`;
+  const iconCard = `<svg class="id-card-row-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>`;
+  const iconMapPin = `<svg class="id-card-row-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
+
+  const cardId = `card-${hh.id}-${seqId}`;
+
   return `
-    <div class="id-card">
-      <div class="id-card-header">
-        <div class="id-card-logo">
-          <img src="assets/temple.png" alt="Mutt Logo">
-        </div>
-        <div class="id-card-header-titles">
-          <h4>ತರಳಬಾಳು ಶಿಷ್ಯ ಮಂಡಳಿ</h4>
-          <p>Taralabalu Shishya Mandali</p>
-        </div>
-      </div>
-      <div class="id-card-body">
-        <div class="id-card-photo-wrap">
-          <img src="${photoSrc}" class="id-card-photo" alt="Photo">
-        </div>
-        <div class="id-card-details">
-          <div class="id-card-mutt-id">${muttId}</div>
-          <div class="id-card-field">
-            <span class="id-card-label">ಹೆಸರು / Name</span>
-            <span class="id-card-value" title="${person.name}">${person.name}</span>
+    <div class="id-card-container" id="${cardId}">
+      <!-- Floating Download Button -->
+      <button class="id-card-download-btn" onclick="downloadSingleCardImage('${cardId}', '${person.name.replace(/'/g, "\\'")}')" title="Download ID Card">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      </button>
+      
+      <div class="id-card-main">
+        <div class="id-card-bg-watermark"></div>
+        <div class="id-card-overlay"></div>
+        
+        <div class="id-card-content">
+          <!-- Left Panel -->
+          <div class="id-card-left">
+            <div class="id-card-avatar-wrap">
+              <img src="${photoSrc}" class="id-card-avatar" alt="Photo" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%23aaa\\' stroke-width=\\'1.5\\'><circle cx=\\'12\\' cy=\\'8\\' r=\\'4\\'/><path d=\\'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\\'/></svg>'">
+            </div>
+            <div class="id-card-rel-label">${roleText.toUpperCase()}</div>
+            <div class="id-card-age-tag">AGE: ${person.age || 'N/A'}</div>
           </div>
-          <div class="id-card-field">
-            <span class="id-card-label">ಸಂಬಂಧ / Role</span>
-            <span class="id-card-value">${roleText}</span>
-          </div>
-          <div class="id-card-field">
-            <span class="id-card-label">ಮೊಬೈಲ್ / Mobile</span>
-            <span class="id-card-value">${phone}</span>
-          </div>
-          <div class="id-card-field">
-            <span class="id-card-label">ವಿಳಾಸ / Address</span>
-            <span class="id-card-value" title="${address}" style="white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${address}</span>
+          
+          <!-- Right Panel -->
+          <div class="id-card-right">
+            <div class="id-card-name" title="${person.name}">${person.name}</div>
+            <div class="id-card-seq-id">ID: ${seqId}</div>
+            <hr class="id-card-divider">
+            
+            <div class="id-card-rows">
+              <div class="id-card-row" title="Occupation: ${occupation}">
+                ${iconBriefcase}
+                <span class="id-card-row-text">${occupation}</span>
+              </div>
+              <div class="id-card-row" title="Phone: ${phone}">
+                ${iconPhone}
+                <span class="id-card-row-text">${phone}</span>
+              </div>
+              <div class="id-card-row" title="Aadhaar: ${aadhaar}">
+                ${iconCard}
+                <span class="id-card-row-text">${aadhaar}</span>
+              </div>
+              <div class="id-card-row" title="District: ${district}">
+                ${iconMapPin}
+                <span class="id-card-row-text">${district}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="id-card-footer">
-        <p>ಶ್ರೀ ತರಳಬಾಳು ಜಗದ್ಗುರು ಬೃಹನ್ಮಠ, ಸಿರಿಗೆರೆ</p>
       </div>
     </div>
   `;
+}
+
+async function downloadSingleCardImage(cardId, name) {
+  const cardElement = document.getElementById(cardId);
+  if (!cardElement) return;
+
+  const imgElement = cardElement.querySelector('.id-card-avatar');
+  const originalSrc = imgElement ? imgElement.src : '';
+  let tempBase64 = '';
+
+  try {
+    if (originalSrc && !originalSrc.startsWith('data:') && !originalSrc.startsWith('blob:')) {
+      showToast('Preparing download...', 'info');
+      const response = await fetch(originalSrc);
+      const blob = await response.blob();
+      tempBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      imgElement.src = tempBase64;
+    }
+
+    const downloadBtn = cardElement.querySelector('.id-card-download-btn');
+    if (downloadBtn) downloadBtn.style.display = 'none';
+
+    const canvas = await html2canvas(cardElement.querySelector('.id-card-main'), {
+      useCORS: true,
+      allowTaint: false,
+      scale: 2
+    });
+
+    if (downloadBtn) downloadBtn.style.display = '';
+
+    if (imgElement && tempBase64) {
+      imgElement.src = originalSrc;
+    }
+
+    const link = document.createElement('a');
+    link.download = `${name.replace(/\s+/g, '_')}_ID_Card.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('ID Card downloaded successfully!', 'success');
+  } catch (error) {
+    console.error('Download failed:', error);
+    showToast('Download failed. Please try printing or screenshot instead.', 'error');
+    const downloadBtn = cardElement.querySelector('.id-card-download-btn');
+    if (downloadBtn) downloadBtn.style.display = '';
+    if (imgElement && originalSrc) imgElement.src = originalSrc;
+  }
 }
 
 // ── BROADCAST MESSAGE BOARD LOGIC ──────────────────────
