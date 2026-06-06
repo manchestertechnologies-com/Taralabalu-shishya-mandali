@@ -602,41 +602,49 @@ function onDobChanged(cardPrefix) {
 
 // Pincode Autocomplete programmatically sets cascades
 const PINCODE_LOOKUP = {
-  '577001': { countryId: '1', stateId: '1', districtId: '1', talukId: '1' },
-  '577002': { countryId: '1', stateId: '1', districtId: '1', talukId: '1' },
-  '577527': { countryId: '1', stateId: '1', districtId: '2', talukId: '6' }
+  '577001': { countryId: '1', stateId: '11', districtId: '12', talukId: '67' },
+  '577002': { countryId: '1', stateId: '11', districtId: '12', talukId: '67' },
+  '577527': { countryId: '1', stateId: '11', districtId: '12', talukId: '70' }
 };
 
 function getBestMatch(inputName, candidateList) {
-  if (!candidateList || candidateList.length === 0) return null;
+  if (!candidateList || candidateList.length === 0 || !inputName) return null;
   
-  const clean = (str) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const clean = (str) => (str || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
   const cleanInput = clean(inputName);
   
   // 1. Check exact clean match
-  let match = candidateList.find(c => clean(c.name) === cleanInput);
+  let match = candidateList.find(c => c && clean(c.name) === cleanInput);
   if (match) return match;
   
   // 2. Check if clean name is substring or vice versa
-  match = candidateList.find(c => clean(c.name).includes(cleanInput) || cleanInput.includes(clean(c.name)));
+  match = candidateList.find(c => c && (clean(c.name).includes(cleanInput) || cleanInput.includes(clean(c.name))));
   if (match) return match;
   
   // 3. Check for phonetic/vowel-insensitive match
   const devowel = (str) => clean(str).replace(/[aeiou]/g, '');
   const devowelInput = devowel(inputName);
-  match = candidateList.find(c => devowel(c.name) === devowelInput);
+  match = candidateList.find(c => c && devowel(c.name) === devowelInput);
   if (match) return match;
   
   // 4. Check if devoweled name is substring
-  match = candidateList.find(c => devowel(c.name).includes(devowelInput) || devowelInput.includes(devowel(c.name)));
+  match = candidateList.find(c => c && (devowel(c.name).includes(devowelInput) || devowelInput.includes(devowel(c.name))));
   if (match) return match;
 
-  return candidateList[0];
+  return candidateList[0] || null;
 }
 
 async function onPincodeChange(cardPrefix) {
-  const pincode = document.getElementById(`${cardPrefix}-pincode`).value.trim();
+  const pincodeEl = document.getElementById(`${cardPrefix}-pincode`);
+  if (!pincodeEl) return;
+  
+  const pincode = pincodeEl.value.trim();
   if (pincode.length !== 6) return;
+
+  if (!supabaseClient) {
+    showToast('Database not connected. Cannot resolve pincode.', 'warning');
+    return;
+  }
 
   showLoading(true, 'Resolving locations from Pincode...');
   
@@ -653,12 +661,47 @@ async function onPincodeChange(cardPrefix) {
       districtId = lookup.districtId;
       talukId = lookup.talukId;
     } else {
-      // Fetch from public India Postal Pincode API via CORS proxy to bypass browser restrictions
+      // Fetch from public India Postal Pincode API via multiple proxies for reliability
+      let data = null;
       const targetUrl = `https://api.postalpincode.in/pincode/${pincode}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl);
-      const wrapper = await res.json();
-      const data = JSON.parse(wrapper.contents);
+      
+      // Try 1: corsproxy.io (returns raw JSON directly)
+      try {
+        const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (err) {
+        console.warn("corsproxy.io failed, trying allorigins:", err);
+      }
+      
+      // Try 2: allorigins.win (returns wrapped JSON)
+      if (!data) {
+        try {
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const wrapper = await res.json();
+            if (wrapper && wrapper.contents) {
+              data = JSON.parse(wrapper.contents);
+            }
+          }
+        } catch (err) {
+          console.warn("allorigins failed, trying direct fetch:", err);
+        }
+      }
+      
+      // Try 3: Direct fetch (CORS fallback)
+      if (!data) {
+        try {
+          const res = await fetch(targetUrl);
+          if (res.ok) {
+            data = await res.json();
+          }
+        } catch (err) {
+          console.error("Direct fetch failed too:", err);
+        }
+      }
       
       if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
         const po = data[0].PostOffice[0];
@@ -666,36 +709,38 @@ async function onPincodeChange(cardPrefix) {
         const districtName = po.District;
         const talukName = po.Block; // Block matches Taluk in post office details
         
-        countryId = '1'; // India
-        
-        // Find state
-        const { data: states } = await supabaseClient
-          .from('states')
-          .select('id, name')
-          .ilike('name', `%${stateName}%`);
-        
-        if (states && states.length > 0) {
-          stateId = String(states[0].id);
+        if (stateName && districtName && talukName) {
+          countryId = '1'; // India
           
-          // Find district
-          const { data: districts } = await supabaseClient
-            .from('districts')
+          // Find state
+          const { data: states } = await supabaseClient
+            .from('states')
             .select('id, name')
-            .eq('state_id', stateId);
+            .ilike('name', `%${stateName}%`);
           
-          const matchedDistrict = getBestMatch(districtName, districts);
-          if (matchedDistrict) {
-            districtId = String(matchedDistrict.id);
+          if (states && states.length > 0) {
+            stateId = String(states[0].id);
             
-            // Find taluk
-            const { data: taluks } = await supabaseClient
-              .from('taluks')
+            // Find district
+            const { data: districts } = await supabaseClient
+              .from('districts')
               .select('id, name')
-              .eq('district_id', districtId);
+              .eq('state_id', stateId);
             
-            const matchedTaluk = getBestMatch(talukName, taluks);
-            if (matchedTaluk) {
-              talukId = String(matchedTaluk.id);
+            const matchedDistrict = getBestMatch(districtName, districts);
+            if (matchedDistrict) {
+              districtId = String(matchedDistrict.id);
+              
+              // Find taluk
+              const { data: taluks } = await supabaseClient
+                .from('taluks')
+                .select('id, name')
+                .eq('district_id', districtId);
+              
+              const matchedTaluk = getBestMatch(talukName, taluks);
+              if (matchedTaluk) {
+                talukId = String(matchedTaluk.id);
+              }
             }
           }
         }
@@ -703,17 +748,30 @@ async function onPincodeChange(cardPrefix) {
     }
 
     if (countryId && stateId && districtId && talukId) {
-      document.getElementById(`${cardPrefix}-country`).value = countryId;
-      await onCascadeChange(cardPrefix, 'country');
+      const countryEl = document.getElementById(`${cardPrefix}-country`);
+      const stateEl = document.getElementById(`${cardPrefix}-state`);
+      const districtEl = document.getElementById(`${cardPrefix}-district`);
+      const talukEl = document.getElementById(`${cardPrefix}-taluk`);
+
+      if (countryEl) {
+        countryEl.value = countryId;
+        await onCascadeChange(cardPrefix, 'country');
+      }
       
-      document.getElementById(`${cardPrefix}-state`).value = stateId;
-      await onCascadeChange(cardPrefix, 'state');
+      if (stateEl) {
+        stateEl.value = stateId;
+        await onCascadeChange(cardPrefix, 'state');
+      }
       
-      document.getElementById(`${cardPrefix}-district`).value = districtId;
-      await onCascadeChange(cardPrefix, 'district');
+      if (districtEl) {
+        districtEl.value = districtId;
+        await onCascadeChange(cardPrefix, 'district');
+      }
       
-      document.getElementById(`${cardPrefix}-taluk`).value = talukId;
-      await onCascadeChange(cardPrefix, 'taluk');
+      if (talukEl) {
+        talukEl.value = talukId;
+        await onCascadeChange(cardPrefix, 'taluk');
+      }
       
       showToast('Pincode resolved successfully!', 'success');
     } else {
@@ -1215,19 +1273,19 @@ async function generateAndUploadCard(member, profileUrl, cardPrefix) {
 function getSingleCardHTML(m, includeDownloadBtn = true, memberCount = 0, householdId = null) {
   const photo = m.photo_url || 'assets/app_icon.jpg';
   const downloadBtn = includeDownloadBtn 
-    ? `<button class="id-card-download-btn" onclick="downloadCardImage('${m.card_image_url || ''}', '${m.full_name}')" title="Download PNG">
+    ? `<button class="id-card-download-btn" onclick="downloadCardImage('${m.card_image_url || ''}', '${m.full_name}', event)" title="Download PNG">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
        </button>`
     : '';
     
   const clickAction = householdId 
-    ? `openHouseholdCardsModal('${householdId}')`
-    : (includeDownloadBtn ? `openCardFullModal('${m.card_image_url || ''}')` : '');
+    ? `openHouseholdCardsModal('${householdId}', event)`
+    : '';
 
-  const memberRow = memberCount > 0
-    ? `<div class="id-card-row id-card-member-count">
-         <span class="id-card-row-icon">👥</span>
-         <span class="id-card-row-text" style="color:var(--accent); font-weight:700;">+${memberCount} Family Members</span>
+  const memberRow = (householdId !== null)
+    ? `<div class="id-card-row id-card-member-count" style="margin-top:4px; padding:2px 6px; background:rgba(20, 184, 166, 0.15); border-radius:4px; display:inline-flex; align-items:center; width:fit-content;">
+         <span class="id-card-row-icon" style="font-size:11px; margin-right:4px;">👥</span>
+         <span class="id-card-row-text" style="color:var(--accent); font-weight:700; font-size:9.5px; white-space:nowrap;">Total Members: ${memberCount + 1}</span>
        </div>`
     : '';
 
@@ -1267,9 +1325,9 @@ function getSingleCardHTML(m, includeDownloadBtn = true, memberCount = 0, househ
 }
 
 // Download Card File directly from Supabase Storage URL
-async function downloadCardImage(imageUrl, name) {
+async function downloadCardImage(imageUrl, name, event) {
   if (!imageUrl) return;
-  event.stopPropagation(); // prevent modal opening
+  if (event) event.stopPropagation(); // prevent modal opening
   
   try {
     const res = await fetch(imageUrl);
@@ -1294,8 +1352,8 @@ function openCardFullModal(url) {
 }
 
 // Open modal showing all cards of a household
-async function openHouseholdCardsModal(householdId) {
-  event.stopPropagation(); // Prevent trigger recursion
+async function openHouseholdCardsModal(householdId, event) {
+  if (event) event.stopPropagation(); // Prevent trigger recursion
   const members = userHouseholds[householdId];
   if (!members || members.length === 0) return;
 
