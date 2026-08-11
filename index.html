@@ -180,38 +180,33 @@
                 
                 <div class="input-field">
                   <label for="head-country">Country / ದೇಶ *</label>
-                  <select id="head-country" required onchange="onCascadeChange('head', 'country')">
-                    <option value="">Select Country</option>
-                  </select>
+                  <input type="text" id="head-country" list="head-country-list" placeholder="Type or Select Country" required onchange="onCascadeChange('head', 'country')">
+                  <datalist id="head-country-list"></datalist>
                 </div>
 
                 <div class="form-row">
                   <div class="input-field width-50">
                     <label for="head-state">State / ರಾಜ್ಯ *</label>
-                    <select id="head-state" required onchange="onCascadeChange('head', 'state')" disabled>
-                      <option value="">Select State</option>
-                    </select>
+                    <input type="text" id="head-state" list="head-state-list" placeholder="Type or Select State" required onchange="onCascadeChange('head', 'state')">
+                    <datalist id="head-state-list"></datalist>
                   </div>
                   <div class="input-field width-50">
                     <label for="head-district">District / ಜಿಲ್ಲೆ *</label>
-                    <select id="head-district" required onchange="onCascadeChange('head', 'district')" disabled>
-                      <option value="">Select District</option>
-                    </select>
+                    <input type="text" id="head-district" list="head-district-list" placeholder="Type or Select District" required onchange="onCascadeChange('head', 'district')">
+                    <datalist id="head-district-list"></datalist>
                   </div>
                 </div>
 
                 <div class="form-row">
                   <div class="input-field width-50">
                     <label for="head-taluk">Taluk / ತಾಲ್ಲೂಕು *</label>
-                    <select id="head-taluk" required onchange="onCascadeChange('head', 'taluk')" disabled>
-                      <option value="">Select Taluk</option>
-                    </select>
+                    <input type="text" id="head-taluk" list="head-taluk-list" placeholder="Type or Select Taluk" required onchange="onCascadeChange('head', 'taluk')">
+                    <datalist id="head-taluk-list"></datalist>
                   </div>
                   <div class="input-field width-50">
                     <label for="head-ward">Ward / ವಾರ್ಡ್ / Nagara *</label>
-                    <select id="head-ward" required onchange="saveAutosaveForm()" disabled>
-                      <option value="">Select Ward</option>
-                    </select>
+                    <input type="text" id="head-ward" list="head-ward-list" placeholder="Type or Select Ward" required onchange="saveAutosaveForm()">
+                    <datalist id="head-ward-list"></datalist>
                   </div>
                 </div>
 
@@ -443,37 +438,32 @@
 
           <div class="input-field">
             <label for="edit-country">Country</label>
-            <select id="edit-country" required onchange="onEditCountryChanged()">
-              <option value="">Select Country</option>
-            </select>
+            <input type="text" id="edit-country" list="edit-country-list" placeholder="Type or Select Country" required onchange="onEditCountryChanged()">
+            <datalist id="edit-country-list"></datalist>
           </div>
 
           <div class="input-field">
             <label for="edit-state">State</label>
-            <select id="edit-state" required onchange="onEditStateChanged()">
-              <option value="">Select State</option>
-            </select>
+            <input type="text" id="edit-state" list="edit-state-list" placeholder="Type or Select State" required onchange="onEditStateChanged()">
+            <datalist id="edit-state-list"></datalist>
           </div>
 
           <div class="input-field">
             <label for="edit-district">District</label>
-            <select id="edit-district" required onchange="onEditDistrictChanged()">
-              <option value="">Select District</option>
-            </select>
+            <input type="text" id="edit-district" list="edit-district-list" placeholder="Type or Select District" required onchange="onEditDistrictChanged()">
+            <datalist id="edit-district-list"></datalist>
           </div>
 
           <div class="input-field">
             <label for="edit-taluk">Taluk</label>
-            <select id="edit-taluk" required onchange="onEditTalukChanged()">
-              <option value="">Select Taluk</option>
-            </select>
+            <input type="text" id="edit-taluk" list="edit-taluk-list" placeholder="Type or Select Taluk" required onchange="onEditTalukChanged()">
+            <datalist id="edit-taluk-list"></datalist>
           </div>
 
           <div class="input-field">
             <label for="edit-ward">Ward</label>
-            <select id="edit-ward" required>
-              <option value="">Select Ward</option>
-            </select>
+            <input type="text" id="edit-ward" list="edit-ward-list" placeholder="Type or Select Ward" required>
+            <datalist id="edit-ward-list"></datalist>
           </div>
 
           <div class="input-field">
@@ -517,6 +507,6 @@
   </div>
 
   <!-- Core JS logic script (Cache-busted) -->
-  <script src="app.js?v=130"></script>
+  <script src="app.js?v=131"></script>
 </body>
 </html>

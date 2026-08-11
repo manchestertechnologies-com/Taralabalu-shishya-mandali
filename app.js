@@ -374,43 +374,38 @@ function renderFamilyMembers(count) {
             <input type="text" id="member-traditional-occ-${i}" oninput="saveAutosaveForm()">
           </div>
 
-          <!-- Location Dropdowns -->
+           <!-- Location Dropdowns -->
           <h4 class="form-group-title">Address / ವಿಳಾಸ</h4>
           
           <div class="input-field">
             <label for="member-country-${i}">Country / ದೇಶ *</label>
-            <select id="member-country-${i}" required onchange="onCascadeChange('member-${i}', 'country')">
-              <option value="">Select Country</option>
-            </select>
+            <input type="text" id="member-country-${i}" list="member-country-${i}-list" placeholder="Type or Select Country" required onchange="onCascadeChange('member-${i}', 'country')">
+            <datalist id="member-country-${i}-list"></datalist>
           </div>
 
           <div class="form-row">
             <div class="input-field width-50">
               <label for="member-state-${i}">State / ರಾಜ್ಯ *</label>
-              <select id="member-state-${i}" required onchange="onCascadeChange('member-${i}', 'state')" disabled>
-                <option value="">Select State</option>
-              </select>
+              <input type="text" id="member-state-${i}" list="member-state-${i}-list" placeholder="Type or Select State" required onchange="onCascadeChange('member-${i}', 'state')">
+              <datalist id="member-state-${i}-list"></datalist>
             </div>
             <div class="input-field width-50">
               <label for="member-district-${i}">District / ಜಿಲ್ಲೆ *</label>
-              <select id="member-district-${i}" required onchange="onCascadeChange('member-${i}', 'district')" disabled>
-                <option value="">Select District</option>
-              </select>
+              <input type="text" id="member-district-${i}" list="member-district-${i}-list" placeholder="Type or Select District" required onchange="onCascadeChange('member-${i}', 'district')">
+              <datalist id="member-district-${i}-list"></datalist>
             </div>
           </div>
 
           <div class="form-row">
             <div class="input-field width-50">
               <label for="member-taluk-${i}">Taluk / ತಾಲ್ಲೂಕು *</label>
-              <select id="member-taluk-${i}" required onchange="onCascadeChange('member-${i}', 'taluk')" disabled>
-                <option value="">Select Taluk</option>
-              </select>
+              <input type="text" id="member-taluk-${i}" list="member-taluk-${i}-list" placeholder="Type or Select Taluk" required onchange="onCascadeChange('member-${i}', 'taluk')">
+              <datalist id="member-taluk-${i}-list"></datalist>
             </div>
             <div class="input-field width-50">
               <label for="member-ward-${i}">Ward / ವಾರ್ಡ್ / Nagara *</label>
-              <select id="member-ward-${i}" required onchange="saveAutosaveForm()" disabled>
-                <option value="">Select Ward</option>
-              </select>
+              <input type="text" id="member-ward-${i}" list="member-ward-${i}-list" placeholder="Type or Select Ward" required onchange="saveAutosaveForm()">
+              <datalist id="member-ward-${i}-list"></datalist>
             </div>
           </div>
 
@@ -516,63 +511,82 @@ function previewMemberPhoto(cardPrefix, event) {
 async function onCascadeChange(cardPrefix, level) {
   if (!supabaseClient) return;
   
-  const countryId = document.getElementById(`${cardPrefix}-country`).value;
-  const stateSelect = document.getElementById(`${cardPrefix}-state`);
-  const districtSelect = document.getElementById(`${cardPrefix}-district`);
-  const talukSelect = document.getElementById(`${cardPrefix}-taluk`);
-  const wardSelect = document.getElementById(`${cardPrefix}-ward`);
+  const countryInput = document.getElementById(`${cardPrefix}-country`);
+  const stateInput = document.getElementById(`${cardPrefix}-state`);
+  const districtInput = document.getElementById(`${cardPrefix}-district`);
+  const talukInput = document.getElementById(`${cardPrefix}-taluk`);
+  const wardInput = document.getElementById(`${cardPrefix}-ward`);
+  
+  const countryName = countryInput ? countryInput.value.trim() : '';
   
   if (level === 'country') {
-    resetDropdown(stateSelect, 'Select State');
-    resetDropdown(districtSelect, 'Select District');
-    resetDropdown(talukSelect, 'Select Taluk');
-    resetDropdown(wardSelect, 'Select Ward');
-    if (!countryId) { saveAutosaveForm(); return; }
+    resetDropdown(stateInput, 'Select State');
+    resetDropdown(districtInput, 'Select District');
+    resetDropdown(talukInput, 'Select Taluk');
+    resetDropdown(wardInput, 'Select Ward');
+    if (!countryName) { saveAutosaveForm(); return; }
     
     try {
+      const countryId = await getOrCreateLocationId('countries', countryName);
+      if (!countryId) { saveAutosaveForm(); return; }
       const { data, error } = await supabaseClient.from('states').select('*').eq('country_id', countryId).order('name', { ascending: true });
       if (error) throw error;
       populateDropdown(`${cardPrefix}-state`, data || []);
-      stateSelect.disabled = false;
+      if (stateInput) stateInput.disabled = false;
     } catch (err) { console.error(err); }
     
   } else if (level === 'state') {
-    const stateId = stateSelect.value;
-    resetDropdown(districtSelect, 'Select District');
-    resetDropdown(talukSelect, 'Select Taluk');
-    resetDropdown(wardSelect, 'Select Ward');
-    if (!stateId) { saveAutosaveForm(); return; }
+    const stateName = stateInput ? stateInput.value.trim() : '';
+    resetDropdown(districtInput, 'Select District');
+    resetDropdown(talukInput, 'Select Taluk');
+    resetDropdown(wardInput, 'Select Ward');
+    if (!stateName) { saveAutosaveForm(); return; }
     
     try {
+      const countryId = await getOrCreateLocationId('countries', countryName);
+      const stateId = await getOrCreateLocationId('states', stateName, 'country_id', countryId);
+      if (!stateId) { saveAutosaveForm(); return; }
       const { data, error } = await supabaseClient.from('districts').select('*').eq('state_id', stateId).order('name', { ascending: true });
       if (error) throw error;
       populateDropdown(`${cardPrefix}-district`, data || []);
-      districtSelect.disabled = false;
+      if (districtInput) districtInput.disabled = false;
     } catch (err) { console.error(err); }
     
   } else if (level === 'district') {
-    const districtId = districtSelect.value;
-    resetDropdown(talukSelect, 'Select Taluk');
-    resetDropdown(wardSelect, 'Select Ward');
-    if (!districtId) { saveAutosaveForm(); return; }
+    const stateName = stateInput ? stateInput.value.trim() : '';
+    const districtName = districtInput ? districtInput.value.trim() : '';
+    resetDropdown(talukInput, 'Select Taluk');
+    resetDropdown(wardInput, 'Select Ward');
+    if (!districtName) { saveAutosaveForm(); return; }
     
     try {
+      const countryId = await getOrCreateLocationId('countries', countryName);
+      const stateId = await getOrCreateLocationId('states', stateName, 'country_id', countryId);
+      const districtId = await getOrCreateLocationId('districts', districtName, 'state_id', stateId);
+      if (!districtId) { saveAutosaveForm(); return; }
       const { data, error } = await supabaseClient.from('taluks').select('*').eq('district_id', districtId).order('name', { ascending: true });
       if (error) throw error;
       populateDropdown(`${cardPrefix}-taluk`, data || []);
-      talukSelect.disabled = false;
+      if (talukInput) talukInput.disabled = false;
     } catch (err) { console.error(err); }
     
   } else if (level === 'taluk') {
-    const talukId = talukSelect.value;
-    resetDropdown(wardSelect, 'Select Ward');
-    if (!talukId) { saveAutosaveForm(); return; }
+    const stateName = stateInput ? stateInput.value.trim() : '';
+    const districtName = districtInput ? districtInput.value.trim() : '';
+    const talukName = talukInput ? talukInput.value.trim() : '';
+    resetDropdown(wardInput, 'Select Ward');
+    if (!talukName) { saveAutosaveForm(); return; }
     
     try {
+      const countryId = await getOrCreateLocationId('countries', countryName);
+      const stateId = await getOrCreateLocationId('states', stateName, 'country_id', countryId);
+      const districtId = await getOrCreateLocationId('districts', districtName, 'state_id', stateId);
+      const talukId = await getOrCreateLocationId('taluks', talukName, 'district_id', districtId);
+      if (!talukId) { saveAutosaveForm(); return; }
       const { data, error } = await supabaseClient.from('wards').select('*').eq('taluk_id', talukId).order('name', { ascending: true });
       if (error) throw error;
       populateDropdown(`${cardPrefix}-ward`, data || []);
-      wardSelect.disabled = false;
+      if (wardInput) wardInput.disabled = false;
     } catch (err) { console.error(err); }
   }
   
@@ -1052,6 +1066,13 @@ async function submitSurveyForm() {
       }
     }
     
+    // Resolve Head Address to database IDs (Dynamic self-healing resolution)
+    const headCountryId = await getOrCreateLocationId('countries', h.country);
+    const headStateId = await getOrCreateLocationId('states', h.state, 'country_id', headCountryId);
+    const headDistrictId = await getOrCreateLocationId('districts', h.district, 'state_id', headStateId);
+    const headTalukId = await getOrCreateLocationId('taluks', h.taluk, 'district_id', headDistrictId);
+    const headWardId = await getOrCreateLocationId('wards', h.ward, 'taluk_id', headTalukId);
+    
     const { data: dbHead, error: headErr } = await supabaseClient
       .from('members')
       .insert({
@@ -1067,11 +1088,11 @@ async function submitSurveyForm() {
         employment_sector: h.sector,
         occupation: h.occupation,
         traditional_occupation: h.traditionalOcc,
-        country_id: parseInt(h.country),
-        state_id: parseInt(h.state),
-        district_id: parseInt(h.district),
-        taluk_id: parseInt(h.taluk),
-        ward_id: parseInt(h.ward),
+        country_id: headCountryId,
+        state_id: headStateId,
+        district_id: headDistrictId,
+        taluk_id: headTalukId,
+        ward_id: headWardId,
         address: h.address,
         pincode: h.pincode,
         photo_url: headPhotoUrl
@@ -1106,6 +1127,14 @@ async function submitSurveyForm() {
       }
       
       showLoading(true, `Saving member ${i + 1} details...`);
+      
+      // Resolve Member Address to database IDs
+      const mCountryId = await getOrCreateLocationId('countries', m.country);
+      const mStateId = await getOrCreateLocationId('states', m.state, 'country_id', mCountryId);
+      const mDistrictId = await getOrCreateLocationId('districts', m.district, 'state_id', mStateId);
+      const mTalukId = await getOrCreateLocationId('taluks', m.taluk, 'district_id', mDistrictId);
+      const mWardId = await getOrCreateLocationId('wards', m.ward, 'taluk_id', mTalukId);
+      
       const { data: dbMember, error: memberErr } = await supabaseClient
         .from('members')
         .insert({
@@ -1121,11 +1150,11 @@ async function submitSurveyForm() {
           employment_sector: m.sector,
           occupation: m.occupation,
           traditional_occupation: m.traditionalOcc,
-          country_id: parseInt(m.country),
-          state_id: parseInt(m.state),
-          district_id: parseInt(m.district),
-          taluk_id: parseInt(m.taluk),
-          ward_id: parseInt(m.ward),
+          country_id: mCountryId,
+          state_id: mStateId,
+          district_id: mDistrictId,
+          taluk_id: mTalukId,
+          ward_id: mWardId,
           address: m.address,
           pincode: m.pincode,
           photo_url: memberPhotoUrl
@@ -1199,8 +1228,10 @@ async function uploadImageToBucket(base64Data, bucketName, fileName) {
 // Generate Card via html2canvas and save to Storage
 async function generateAndUploadCard(member, profileUrl, cardPrefix) {
   // Resolve geographic select list labels
-  const districtName = document.getElementById(`${cardPrefix}-district`).options[document.getElementById(`${cardPrefix}-district`).selectedIndex].text;
-  const talukName = document.getElementById(`${cardPrefix}-taluk`).options[document.getElementById(`${cardPrefix}-taluk`).selectedIndex].text;
+  const districtEl = document.getElementById(`${cardPrefix}-district`);
+  const talukEl = document.getElementById(`${cardPrefix}-taluk`);
+  const districtName = districtEl ? districtEl.value : '';
+  const talukName = talukEl ? talukEl.value : '';
   
   const tempContainer = document.createElement('div');
   tempContainer.style.position = 'fixed';
@@ -1815,75 +1846,97 @@ async function deleteMember(id) {
 
 // Edit Member cascades
 async function onEditCountryChanged() {
-  const countryId = document.getElementById('edit-country').value;
-  const stateSelect = document.getElementById('edit-state');
-  const districtSelect = document.getElementById('edit-district');
-  const talukSelect = document.getElementById('edit-taluk');
-  const wardSelect = document.getElementById('edit-ward');
+  const countryInput = document.getElementById('edit-country');
+  const stateInput = document.getElementById('edit-state');
+  const districtInput = document.getElementById('edit-district');
+  const talukInput = document.getElementById('edit-taluk');
+  const wardInput = document.getElementById('edit-ward');
   
-  resetDropdown(stateSelect, 'Select State');
-  resetDropdown(districtSelect, 'Select District');
-  resetDropdown(talukSelect, 'Select Taluk');
-  resetDropdown(wardSelect, 'Select Ward');
+  const countryName = countryInput ? countryInput.value.trim() : '';
   
-  if (!countryId) return;
+  resetDropdown(stateInput, 'Select State');
+  resetDropdown(districtInput, 'Select District');
+  resetDropdown(talukInput, 'Select Taluk');
+  resetDropdown(wardInput, 'Select Ward');
+  
+  if (!countryName) return;
   
   try {
+    const countryId = await getOrCreateLocationId('countries', countryName);
+    if (!countryId) return;
     const { data, error } = await supabaseClient.from('states').select('*').eq('country_id', countryId).order('name', { ascending: true });
     if (error) throw error;
     populateDropdown('edit-state', data || []);
-    stateSelect.disabled = false;
+    if (stateInput) stateInput.disabled = false;
   } catch (err) { console.error(err); }
 }
 
 async function onEditStateChanged() {
-  const stateId = document.getElementById('edit-state').value;
-  const districtSelect = document.getElementById('edit-district');
-  const talukSelect = document.getElementById('edit-taluk');
-  const wardSelect = document.getElementById('edit-ward');
+  const countryName = document.getElementById('edit-country').value.trim();
+  const stateName = document.getElementById('edit-state').value.trim();
+  const districtInput = document.getElementById('edit-district');
+  const talukInput = document.getElementById('edit-taluk');
+  const wardInput = document.getElementById('edit-ward');
   
-  resetDropdown(districtSelect, 'Select District');
-  resetDropdown(talukSelect, 'Select Taluk');
-  resetDropdown(wardSelect, 'Select Ward');
-  if (!stateId) return;
+  resetDropdown(districtInput, 'Select District');
+  resetDropdown(talukInput, 'Select Taluk');
+  resetDropdown(wardInput, 'Select Ward');
+  if (!stateName) return;
   
   try {
+    const countryId = await getOrCreateLocationId('countries', countryName);
+    const stateId = await getOrCreateLocationId('states', stateName, 'country_id', countryId);
+    if (!stateId) return;
     const { data, error } = await supabaseClient.from('districts').select('*').eq('state_id', stateId).order('name', { ascending: true });
     if (error) throw error;
     populateDropdown('edit-district', data || []);
-    districtSelect.disabled = false;
+    if (districtInput) districtInput.disabled = false;
   } catch (err) { console.error(err); }
 }
 
 async function onEditDistrictChanged() {
-  const districtId = document.getElementById('edit-district').value;
-  const talukSelect = document.getElementById('edit-taluk');
-  const wardSelect = document.getElementById('edit-ward');
+  const countryName = document.getElementById('edit-country').value.trim();
+  const stateName = document.getElementById('edit-state').value.trim();
+  const districtName = document.getElementById('edit-district').value.trim();
+  const talukInput = document.getElementById('edit-taluk');
+  const wardInput = document.getElementById('edit-ward');
   
-  resetDropdown(talukSelect, 'Select Taluk');
-  resetDropdown(wardSelect, 'Select Ward');
-  if (!districtId) return;
+  resetDropdown(talukInput, 'Select Taluk');
+  resetDropdown(wardInput, 'Select Ward');
+  if (!districtName) return;
   
   try {
+    const countryId = await getOrCreateLocationId('countries', countryName);
+    const stateId = await getOrCreateLocationId('states', stateName, 'country_id', countryId);
+    const districtId = await getOrCreateLocationId('districts', districtName, 'state_id', stateId);
+    if (!districtId) return;
     const { data, error } = await supabaseClient.from('taluks').select('*').eq('district_id', districtId).order('name', { ascending: true });
     if (error) throw error;
     populateDropdown('edit-taluk', data || []);
-    talukSelect.disabled = false;
+    if (talukInput) talukInput.disabled = false;
   } catch (err) { console.error(err); }
 }
 
 async function onEditTalukChanged() {
-  const talukId = document.getElementById('edit-taluk').value;
-  const wardSelect = document.getElementById('edit-ward');
+  const countryName = document.getElementById('edit-country').value.trim();
+  const stateName = document.getElementById('edit-state').value.trim();
+  const districtName = document.getElementById('edit-district').value.trim();
+  const talukName = document.getElementById('edit-taluk').value.trim();
+  const wardInput = document.getElementById('edit-ward');
   
-  resetDropdown(wardSelect, 'Select Ward');
-  if (!talukId) return;
+  resetDropdown(wardInput, 'Select Ward');
+  if (!talukName) return;
   
   try {
+    const countryId = await getOrCreateLocationId('countries', countryName);
+    const stateId = await getOrCreateLocationId('states', stateName, 'country_id', countryId);
+    const districtId = await getOrCreateLocationId('districts', districtName, 'state_id', stateId);
+    const talukId = await getOrCreateLocationId('taluks', talukName, 'district_id', districtId);
+    if (!talukId) return;
     const { data, error } = await supabaseClient.from('wards').select('*').eq('taluk_id', talukId).order('name', { ascending: true });
     if (error) throw error;
     populateDropdown('edit-ward', data || []);
-    wardSelect.disabled = false;
+    if (wardInput) wardInput.disabled = false;
   } catch (err) { console.error(err); }
 }
 
@@ -1918,33 +1971,35 @@ async function openEditModal(dbId) {
   document.getElementById('edit-age').value = member.age;
   document.getElementById('edit-address').value = member.address;
   
-  showLoading(true, 'Loading address details...');
+  document.getElementById('edit-country').value = member.country_name || '';
+  document.getElementById('edit-state').value = member.state_name || '';
+  document.getElementById('edit-district').value = member.district_name || '';
+  document.getElementById('edit-taluk').value = member.taluk_name || '';
+  document.getElementById('edit-ward').value = member.ward_name || '';
+  
+  showLoading(true, 'Loading autocomplete selections...');
   try {
     if (member.country_id) {
-      document.getElementById('edit-country').value = member.country_id;
-      await onEditCountryChanged();
-      
-      if (member.state_id) {
-        document.getElementById('edit-state').value = member.state_id;
-        await onEditStateChanged();
-        
-        if (member.district_id) {
-          document.getElementById('edit-district').value = member.district_id;
-          await onEditDistrictChanged();
-          
-          if (member.taluk_id) {
-            document.getElementById('edit-taluk').value = member.taluk_id;
-            await onEditTalukChanged();
-            
-            if (member.ward_id) {
-              document.getElementById('edit-ward').value = member.ward_id;
-            }
-          }
-        }
-      }
+      const { data: states } = await supabaseClient.from('states').select('*').eq('country_id', member.country_id).order('name', { ascending: true });
+      populateDropdown('edit-state', states || []);
     }
-  } catch (err) { console.error(err); }
-  finally { showLoading(false); }
+    if (member.state_id) {
+      const { data: districts } = await supabaseClient.from('districts').select('*').eq('state_id', member.state_id).order('name', { ascending: true });
+      populateDropdown('edit-district', districts || []);
+    }
+    if (member.district_id) {
+      const { data: taluks } = await supabaseClient.from('taluks').select('*').eq('district_id', member.district_id).order('name', { ascending: true });
+      populateDropdown('edit-taluk', taluks || []);
+    }
+    if (member.taluk_id) {
+      const { data: wards } = await supabaseClient.from('wards').select('*').eq('taluk_id', member.taluk_id).order('name', { ascending: true });
+      populateDropdown('edit-ward', wards || []);
+    }
+  } catch (err) { 
+    console.error("Error pre-populating edit dropdowns:", err); 
+  } finally { 
+    showLoading(false); 
+  }
   
   document.getElementById('edit-member-modal').classList.remove('hidden');
 }
@@ -1960,16 +2015,24 @@ async function submitEditMember() {
   const phone = document.getElementById('edit-phone').value.trim();
   const dob = document.getElementById('edit-dob').value;
   const age = document.getElementById('edit-age').value;
-  const countryId = document.getElementById('edit-country').value;
-  const stateId = document.getElementById('edit-state').value;
-  const districtId = document.getElementById('edit-district').value;
-  const talukId = document.getElementById('edit-taluk').value;
-  const wardId = document.getElementById('edit-ward').value;
+  
+  const countryName = document.getElementById('edit-country').value.trim();
+  const stateName = document.getElementById('edit-state').value.trim();
+  const districtName = document.getElementById('edit-district').value.trim();
+  const talukName = document.getElementById('edit-taluk').value.trim();
+  const wardName = document.getElementById('edit-ward').value.trim();
   const address = document.getElementById('edit-address').value.trim();
   
   showLoading(true, 'Saving updates...');
   
   try {
+    // Resolve location names to database IDs (Dynamic self-healing resolution)
+    const countryId = await getOrCreateLocationId('countries', countryName);
+    const stateId = await getOrCreateLocationId('states', stateName, 'country_id', countryId);
+    const districtId = await getOrCreateLocationId('districts', districtName, 'state_id', stateId);
+    const talukId = await getOrCreateLocationId('taluks', talukName, 'district_id', districtId);
+    const wardId = await getOrCreateLocationId('wards', wardName, 'taluk_id', talukId);
+
     const { error } = await supabaseClient
       .from('members')
       .update({
@@ -1977,11 +2040,11 @@ async function submitEditMember() {
         phone: phone,
         dob: dob,
         age: parseInt(age),
-        country_id: parseInt(countryId),
-        state_id: parseInt(stateId),
-        district_id: parseInt(districtId),
-        taluk_id: parseInt(talukId),
-        ward_id: parseInt(wardId),
+        country_id: countryId,
+        state_id: stateId,
+        district_id: districtId,
+        taluk_id: talukId,
+        ward_id: wardId,
         address: address
       })
       .eq('id', id);
@@ -2125,26 +2188,85 @@ function deleteBroadcastMessage(index) {
   }
 }
 
-// ── UTILITY HELPERS ───────────────────────────────────
+async function getOrCreateLocationId(table, name, parentCol = null, parentId = null) {
+  if (!name || !supabaseClient) return null;
+  name = name.trim();
+  if (!name) return null;
+
+  try {
+    // 1. Search for existing record (case-insensitive)
+    let query = supabaseClient.from(table).select('id').ilike('name', name);
+    if (parentCol && parentId) {
+      query = query.eq(parentCol, parentId);
+    }
+    const { data, error } = await query.limit(1);
+    if (error) throw error;
+    if (data && data.length > 0) {
+      return data[0].id;
+    }
+
+    // 2. If not found, insert new record
+    const insertData = { name: name };
+    if (parentCol && parentId) {
+      insertData[parentCol] = parentId;
+    }
+    const { data: inserted, error: insertErr } = await supabaseClient
+      .from(table)
+      .insert(insertData)
+      .select('id')
+      .maybeSingle();
+      
+    if (insertErr) throw insertErr;
+    return inserted ? inserted.id : null;
+  } catch (err) {
+    console.error(`Error in getOrCreateLocationId for ${table} (${name}):`, err);
+    return null;
+  }
+}
+
 function populateDropdown(selectId, list) {
   const select = document.getElementById(selectId);
   if (!select) return;
   
-  const originalHint = select.options[0].text;
-  select.innerHTML = `<option value="">${originalHint}</option>`;
-  
-  list.forEach(item => {
-    const opt = document.createElement('option');
-    opt.value = item.id;
-    opt.textContent = item.name;
-    select.appendChild(opt);
-  });
+  if (select.tagName === 'SELECT') {
+    const originalHint = select.options && select.options[0] ? select.options[0].text : 'Select Option';
+    select.innerHTML = `<option value="">${originalHint}</option>`;
+    list.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.name;
+      select.appendChild(opt);
+    });
+  } else {
+    // Text input using datalist
+    const datalistId = select.getAttribute('list') || `${selectId}-list`;
+    const datalist = document.getElementById(datalistId);
+    if (datalist) {
+      datalist.innerHTML = '';
+      list.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.name; // Use name as value
+        opt.dataset.id = item.id;
+        datalist.appendChild(opt);
+      });
+    }
+  }
 }
 
 function resetDropdown(select, hintText) {
-  select.innerHTML = `<option value="">${hintText}</option>`;
-  select.value = '';
-  select.disabled = true;
+  if (!select) return;
+  if (select.tagName === 'SELECT') {
+    select.innerHTML = `<option value="">${hintText}</option>`;
+    select.value = '';
+    select.disabled = true;
+  } else {
+    select.value = '';
+    const datalistId = select.getAttribute('list') || `${select.id}-list`;
+    const datalist = document.getElementById(datalistId);
+    if (datalist) datalist.innerHTML = '';
+    select.disabled = false; // Always keep editable so user can type manually
+    select.placeholder = hintText;
+  }
 }
 
 function showToast(message, type = 'info') {
