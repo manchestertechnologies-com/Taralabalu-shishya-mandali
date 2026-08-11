@@ -7,6 +7,24 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 let supabaseClient = null;
 
+// Convert base64 dataURL to Blob synchronously (offline/no network requests)
+function dataURLtoBlob(dataurl) {
+  try {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (err) {
+    console.error("Error converting data URL to blob:", err);
+    return null;
+  }
+}
+
 // Global transparent helper to map mismatched dynamic member element IDs
 const _originalGetElementById = document.getElementById;
 document.getElementById = function(id) {
@@ -789,11 +807,11 @@ async function onPincodeChange(cardPrefix) {
       
       showToast('Pincode resolved successfully!', 'success');
     } else {
-      showToast('Could not resolve location for this pincode.', 'warning');
+      showToast('Could not auto-detect location. Please enter manually.', 'info');
     }
   } catch (e) {
     console.error('Pincode resolution failed:', e);
-    showToast('Failed to resolve pincode.', 'error');
+    showToast('Could not auto-detect location. Please enter manually.', 'info');
   } finally {
     showLoading(false);
     saveAutosaveForm();
@@ -1200,8 +1218,8 @@ async function uploadImageToBucket(base64Data, bucketName, fileName) {
     // Auto-create bucket if it doesn't exist
     await ensureBucket(bucketName);
 
-    const response = await fetch(base64Data);
-    const blob = await response.blob();
+    const blob = dataURLtoBlob(base64Data);
+    if (!blob) throw new Error("Invalid image data format.");
 
     const { error } = await supabaseClient.storage
       .from(bucketName)
@@ -1280,8 +1298,8 @@ async function generateAndUploadCard(member, profileUrl, cardPrefix) {
   const cardBase64 = canvas.toDataURL('image/png');
   const fileName = `card_${member.member_id}.png`;
   
-  const cardResponse = await fetch(cardBase64);
-  const cardBlob = await cardResponse.blob();
+  const cardBlob = dataURLtoBlob(cardBase64);
+  if (!cardBlob) throw new Error("Invalid card canvas format.");
   
   const { error } = await supabaseClient.storage
     .from('card-images')
