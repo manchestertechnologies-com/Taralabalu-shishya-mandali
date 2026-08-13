@@ -254,25 +254,111 @@ function switchUserTab(tabName) {
   }
 }
 
-// Load countries list from Database
+const WORLD_COUNTRIES = [
+  { id: '1', name: "India / ಭಾರತ" },
+  { id: '2', name: "United States / ಯುನೈಟೆಡ್ ಸ್ಟೇಟ್ಸ್" },
+  { id: '3', name: "United Kingdom / ಯುನೈಟೆಡ್ ಕಿಂಗ್ಡಮ್" },
+  { id: '4', name: "Canada / ಕೆನಡಾ" },
+  { id: '5', name: "Australia / ಆಸ್ಟ್ರೇಲಿಯಾ" },
+  { id: '6', name: "Germany / ಜರ್ಮನಿ" },
+  { id: '7', name: "France / ಫ್ರಾನ್ಸ್" },
+  { id: '8', name: "Japan / ಜಪಾನ್" },
+  { id: '9', name: "China / ಚೀನಾ" },
+  { id: '10', name: "Russia / ರಷ್ಯಾ" },
+  { id: '11', name: "Brazil / ಬ್ರೆಜಿಲ್" },
+  { id: '12', name: "South Africa / ದಕ್ಷಿಣ ಆಫ್ರಿಕಾ" },
+  { id: '13', name: "Sri Lanka / ಶ್ರೀಲಂಕಾ" },
+  { id: '14', name: "Nepal / ನೇಪಾಳ" },
+  { id: '15', name: "Bangladesh / ಬಾಂಗ್ಲಾದೇಶ" },
+  { id: '16', name: "Pakistan / ಪಾಕಿಸ್ತಾನ" },
+  { id: '17', name: "Afghanistan / ಅಫ್ಘಾನಿಸ್ತಾನ" },
+  { id: '18', name: "Singapore / ಸಿಂಗಾಪುರ" },
+  { id: '19', name: "Malaysia / ಮಲೇಷ್ಯಾ" },
+  { id: '20', name: "New Zealand / ನ್ಯೂಜಿಲೆಂಡ್" },
+  { id: '21', name: "United Arab Emirates / ಯುನೈಟೆಡ್ ಅರಬ್ ಎಮಿರೇಟ್ಸ್" },
+  { id: '22', name: "Saudi Arabia / ಸೌದಿ ಅರೇಬಿಯಾ" },
+  { id: '23', name: "Italy / ಇಟಲಿ" },
+  { id: '24', name: "Spain / ...ಸ್ಪೇನ್" },
+  { id: '25', name: "Netherlands / ನೆದರ್ಲ್ಯಾಂಡ್ಸ್" },
+  { id: '26', name: "Switzerland / ಸ್ವಿಟ್ಜರ್ಲ್ಯಾಂಡ್" },
+  { id: '27', name: "Sweden / ಸ್ವೀಡನ್" },
+  { id: '28', name: "Norway / ನಾರ್ವೆ" },
+  { id: '29', name: "Denmark / ಡೆನ್ಮಾರ್ಕ್" },
+  { id: '30', name: "Finland / ಫಿನ್ಲ್ಯಾಂಡ್" },
+  { id: '31', name: "Mexico / ಮೆಕ್ಸಿಕೋ" },
+  { id: '32', name: "Argentina / ಅರ್ಜೆಂಟೀನಾ" },
+  { id: '33', name: "Egypt / ಈಜಿಪ್ಟ್" },
+  { id: '34', name: "Turkey / ಟರ್ಕಿ" },
+  { id: '35', name: "South Korea / ದಕ್ಷಿಣ ಕೊರಿಯಾ" },
+  { id: '36', name: "Indonesia / ಇಂಡೋನೇಷ್ಯಾ" },
+  { id: '37', name: "Thailand / ಥೈಲ್ಯಾಂಡ್" },
+  { id: '38', name: "Vietnam / ವಿಯೆಟ್ನಾಮ್" },
+  { id: '39', name: "Philippines / ಫಿಲಿಪೈನ್ಸ್" },
+  { id: '40', name: "Israel / ಇಸ್ರೇಲ್" },
+  { id: '41', name: "Kenya / ಕೀನ್ಯಾ" },
+  { id: '42', name: "Nigeria / ನೈಜೀರಿಯಾ" },
+  { id: '43', name: "Ukraine / ಉಕ್ರೇನ್" },
+  { id: '44', name: "Poland / ಪೋಲೆಂಡ್" },
+  { id: '45', name: "Belgium / ಬೆಲ್ಜಿಯಂ" },
+  { id: '46', name: "Austria / ಆಸ್ಟ್ರಿಯಾ" },
+  { id: '47', name: "Greece / ಗ್ರೀಸ್" },
+  { id: '48', name: "Portugal / ಪೋರ್ಚುಗಲ್" },
+  { id: '49', name: "Ireland / ಐರ್ಲೆಂಡ್" },
+  { id: '50', name: "Oman / ಒಮಾನ್" },
+  { id: '51', name: "Qatar / ಕತಾರ್" },
+  { id: '52', name: "Kuwait / ಕುವೈತ್" },
+  { id: '53', name: "Bahrain / ಬಹ್ರೇನ್" },
+  { id: '54', name: "Bhutan / ಭೂತಾನ್" },
+  { id: '55', name: "Maldives / ಮಾಲ್ಡೀವ್ಸ್" },
+  { id: '56', name: "Mauritius / ಮಾರಿಷಸ್" },
+  { id: '57', name: "Seychelles / ಸೀಶೆಲ್ಸ್" },
+  { id: '60', name: "Iran / ಇರಾನ್" },
+  { id: '61', name: "Iraq / ಇರಾಕ್" },
+  { id: '62', name: "Yemen / ಯೆಮೆನ್" },
+  { id: '63', name: "Syria / ಸಿರಿಯಾ" },
+  { id: '64', name: "Jordan / ಜೋರ್ಡಾನ್" },
+  { id: '65', name: "Lebanon / ಲೆಬನಾನ್" },
+  { id: '66', name: "Kazakhstan / ಕಝಾಕಿಸ್ತಾನ್" },
+  { id: '67', name: "Uzbekistan / ಉಜ್ಬೇಕಿಸ್ತಾನ್" },
+  { id: '68', name: "Kyrgyzstan / ಕಿರ್ಗಿಸ್ತಾನ್" },
+  { id: '69', name: "Tajikistan / ತಜಿಕಿಸ್ತಾನ್" },
+  { id: '70', name: "Turkmenistan / ತುರ್ಕಮೆನಿಸ್ತಾನ್" }
+];
+
+// Load countries list from Database (or use local world countries fallback)
 async function loadCountriesDropdown() {
-  if (!supabaseClient) return;
-  try {
-    const { data, error } = await supabaseClient
-      .from('countries')
-      .select('*')
-      .order('name', { ascending: true });
-      
-    if (error) throw error;
-    countriesList = data || [];
-    
-    // Populate Head card country selection list & Admin Filter
-    populateDropdown('head-country', countriesList);
-    populateDropdown('edit-country', countriesList);
-    populateDropdown('admin-filter-country', countriesList);
-  } catch (err) {
-    console.error('Failed to fetch countries:', err);
+  countriesList = WORLD_COUNTRIES;
+  
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('countries')
+        .select('*')
+        .order('name', { ascending: true });
+        
+      if (!error && data && data.length > 0) {
+        // Merge DB countries into local WORLD_COUNTRIES, avoiding duplicates
+        const dbNames = new Set(data.map(item => item.name.toLowerCase().split('/')[0].trim()));
+        const mergedList = [...data];
+        WORLD_COUNTRIES.forEach(item => {
+          const engName = item.name.toLowerCase().split('/')[0].trim();
+          if (!dbNames.has(engName)) {
+            mergedList.push(item);
+          }
+        });
+        countriesList = mergedList;
+      }
+    } catch (err) {
+      console.error('Failed to fetch countries from database, using local fallback:', err);
+    }
   }
+
+  // Populate Head card country selection list & Admin Filter
+  populateDropdown('head-country', countriesList);
+  populateDropdown('edit-country', countriesList);
+  populateDropdown('admin-filter-country', countriesList);
+  
+  applyLanguage(currentLanguage); // Ensure translations are applied to new items
 }
 
 // ── DYNAMIC FAMILY MEMBER CARDS GENERATION ───────────
@@ -699,6 +785,32 @@ const COUNTRY_ISO_MAP = {
   'venezuela': 've', 'vietnam': 'vn', 'yemen': 'ye', 'zambia': 'zm', 'zimbabwe': 'zw'
 };
 
+// Helper to resolve ISO code for global zipcodes (supports English and Kannada country names)
+function getCountryCode(countryInputVal) {
+  if (!countryInputVal) return 'in';
+  let cleanName = countryInputVal.split('/')[0].trim().toLowerCase();
+  
+  if (cleanName.includes('ಭಾರತ') || cleanName.includes('ಇಂಡಿಯಾ') || cleanName.startsWith('ind')) return 'in';
+  if (cleanName.includes('ಅಮೆರಿಕ') || cleanName.includes('ಯುಎಸ್') || cleanName.includes('united states') || cleanName === 'usa' || cleanName === 'us') return 'us';
+  if (cleanName.includes('ಕೆನಡಾ') || cleanName === 'canada') return 'ca';
+  if (cleanName.includes('ಆಸ್ಟ್ರೇಲಿಯಾ') || cleanName === 'australia') return 'au';
+  if (cleanName.includes('ಜರ್ಮನಿ') || cleanName === 'germany') return 'de';
+  if (cleanName.includes('ಫ್ರಾನ್ಸ್') || cleanName === 'france') return 'fr';
+  if (cleanName.includes('ಜಪಾನ್') || cleanName === 'japan') return 'jp';
+  if (cleanName.includes('ಚೀನಾ') || cleanName === 'china') return 'cn';
+  if (cleanName.includes('ರಷ್ಯಾ') || cleanName === 'russia') return 'ru';
+  if (cleanName.includes('ಬ್ರೆಜಿಲ್') || cleanName === 'brazil') return 'br';
+  if (cleanName.includes('ಶ್ರೀಲಂಕಾ') || cleanName === 'sri lanka') return 'lk';
+  if (cleanName.includes('ನೇಪಾಳ') || cleanName === 'nepal') return 'np';
+  if (cleanName.includes('ಬಾಂಗ್ಲಾದೇಶ') || cleanName === 'bangladesh') return 'bd';
+  if (cleanName.includes('ಪಾಕಿಸ್ತಾನ') || cleanName === 'pakistan') return 'pk';
+  if (cleanName.includes('ಸಿಂಗಾಪುರ') || cleanName === 'singapore') return 'sg';
+  if (cleanName.includes('ಮಲೇಷ್ಯಾ') || cleanName === 'malaysia') return 'my';
+  if (cleanName.includes('ನ್ಯೂಜಿಲೆಂಡ್') || cleanName === 'new zealand') return 'nz';
+  
+  return COUNTRY_ISO_MAP[cleanName] || 'us';
+}
+
 async function onPincodeChange(cardPrefix) {
   const pincodeEl = document.getElementById(`${cardPrefix}-pincode`);
   if (!pincodeEl) return;
@@ -713,11 +825,9 @@ async function onPincodeChange(cardPrefix) {
 
   // Identify country selection
   const countryEl = document.getElementById(`${cardPrefix}-country`);
-  const countryNameSelected = countryEl ? countryEl.value.trim().toLowerCase() : '';
-  
-  // Default to India if no country is typed yet
-  const countryName = countryNameSelected || 'india';
-  const isIndia = countryName.startsWith('ind');
+  const countryInputRaw = countryEl ? countryEl.value.trim() : '';
+  const countryCode = getCountryCode(countryInputRaw);
+  const isIndia = countryCode === 'in';
 
   // Skip lookup if user is typing a partial Indian pincode
   if (isIndia && pincode.length !== 6) return;
@@ -729,7 +839,7 @@ async function onPincodeChange(cardPrefix) {
     let districtName = '';
     let talukName = '';
     let wardName = '';
-    let countryNameResolved = isIndia ? 'India' : (countryEl ? countryEl.value.trim() : '');
+    let countryNameResolved = isIndia ? 'India' : (countryEl && countryEl.value.trim() ? countryEl.value.split('/')[0].trim() : 'United States');
 
     if (isIndia) {
       let data = null;
@@ -782,7 +892,6 @@ async function onPincodeChange(cardPrefix) {
       }
     } else {
       // Global zippopotam.us fallback for other countries
-      const countryCode = COUNTRY_ISO_MAP[countryName] || 'us';
       const targetUrl = `https://api.zippopotam.us/${countryCode}/${pincode}`;
       
       let data = null;
@@ -812,6 +921,15 @@ async function onPincodeChange(cardPrefix) {
       const districtEl = document.getElementById(`${cardPrefix}-district`);
       const talukEl = document.getElementById(`${cardPrefix}-taluk`);
       const wardEl = document.getElementById(`${cardPrefix}-ward`);
+
+      // Automatically transliterate resolved names to Kannada if language or typing toggle is active
+      if (currentLanguage === 'kn' || phoneticTypingEnabled) {
+        countryNameResolved = await transliterateText(countryNameResolved);
+        stateName = await transliterateText(stateName);
+        districtName = await transliterateText(districtName);
+        talukName = await transliterateText(talukName);
+        wardName = await transliterateText(wardName);
+      }
 
       if (countryEl) {
         countryEl.value = countryNameResolved;
@@ -2401,18 +2519,33 @@ function setupLanguageAndTyping() {
   
   applyLanguage(savedLang);
   
-  const typingToggle = document.getElementById('phonetic-typing-toggle');
-  if (typingToggle) {
-    typingToggle.checked = savedTyping;
-    phoneticTypingEnabled = savedTyping;
-    document.getElementById('typing-mode-label').textContent = savedTyping ? 'ಕನ್ನಡ' : 'EN';
-    
-    typingToggle.addEventListener('change', (e) => {
+  const typingToggles = document.querySelectorAll('.phonetic-typing-toggle');
+  const modeLabels = document.querySelectorAll('.typing-mode-label');
+  
+  typingToggles.forEach(toggle => {
+    toggle.checked = savedTyping;
+  });
+  phoneticTypingEnabled = savedTyping;
+  modeLabels.forEach(lbl => {
+    lbl.textContent = savedTyping ? 'ಕನ್ನಡ' : 'EN';
+  });
+  
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.classList.contains('phonetic-typing-toggle')) {
       phoneticTypingEnabled = e.target.checked;
-      document.getElementById('typing-mode-label').textContent = phoneticTypingEnabled ? 'ಕನ್ನಡ' : 'EN';
+      
+      // Keep other toggles in sync
+      document.querySelectorAll('.phonetic-typing-toggle').forEach(toggle => {
+        if (toggle !== e.target) toggle.checked = phoneticTypingEnabled;
+      });
+      
+      document.querySelectorAll('.typing-mode-label').forEach(lbl => {
+        lbl.textContent = phoneticTypingEnabled ? 'ಕನ್ನಡ' : 'EN';
+      });
+      
       localStorage.setItem('tsm_phonetic_typing', phoneticTypingEnabled ? 'true' : 'false');
-    });
-  }
+    }
+  });
   
   setupKannadaTransliteration();
 }
@@ -2530,4 +2663,12 @@ function setupKannadaTransliteration() {
       }
     }
   });
+}
+
+// Transliterate multi-word texts (e.g. state, district, taluk, ward names)
+async function transliterateText(text) {
+  if (!text) return '';
+  const words = text.split(/(\s+)/);
+  const translatedWords = await Promise.all(words.map(w => transliterateWord(w)));
+  return translatedWords.join('');
 }

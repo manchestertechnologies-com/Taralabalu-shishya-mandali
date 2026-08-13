@@ -69,31 +69,6 @@
     <!-- Top Fixed AppBar -->
     <header class="app-bar">
       <div class="app-bar-title">Taralabalu Sishya Mandali</div>
-      
-      <div class="app-bar-controls" style="display:flex; align-items:center; gap:16px;">
-        <!-- Language Switcher Toggle -->
-        <div class="toggle-container" style="display:flex; align-items:center; gap:8px;">
-          <span class="toggle-label" style="font-size:12px; font-weight:600; color:#fff;">Language:</span>
-          <div class="lang-switch-buttons" style="display:flex; border: 1px solid rgba(255,255,255,0.4); border-radius:6px; overflow:hidden;">
-            <button class="lang-btn active" data-lang="en" onclick="applyLanguage('en')" style="background:rgba(255,255,255,0.2); border:none; color:#fff; padding:4px 8px; font-size:11px; cursor:pointer;">EN</button>
-            <button class="lang-btn" data-lang="kn" onclick="applyLanguage('kn')" style="background:none; border:none; color:#fff; padding:4px 8px; font-size:11px; cursor:pointer;">ಕನ್ನಡ</button>
-          </div>
-        </div>
-        
-        <!-- Phonetic Typing Switcher Toggle -->
-        <div class="toggle-container" style="display:flex; align-items:center; gap:6px;">
-          <span class="toggle-label" style="font-size:12px; font-weight:600; color:#fff;">Typing:</span>
-          <label class="switch">
-            <input type="checkbox" id="phonetic-typing-toggle">
-            <span class="slider"></span>
-          </label>
-          <span style="font-size:11px; font-weight:600; color:#fff;" id="typing-mode-label">EN</span>
-        </div>
-
-        <button class="btn-logout" onclick="confirmLogout()" title="Logout">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
-      </div>
     </header>
 
     <div class="portal-body-wrapper">
@@ -114,6 +89,36 @@
           <span class="sidebar-icon">🏠</span>
           <span class="nav-label">Welcome / ವಚನ ಸಾರ</span>
         </button>
+
+        <!-- Sidebar Controls Footer -->
+        <div class="sidebar-footer">
+          <!-- Language Selector -->
+          <div class="toggle-container">
+            <span class="toggle-label">Language / ಭಾಷೆ:</span>
+            <div class="lang-switch-buttons">
+              <button class="lang-btn active" data-lang="en" onclick="applyLanguage('en')">EN</button>
+              <button class="lang-btn" data-lang="kn" onclick="applyLanguage('kn')">ಕನ್ನಡ</button>
+            </div>
+          </div>
+          
+          <!-- Typing Toggle -->
+          <div class="toggle-container" style="flex-direction:row; align-items:center; justify-content:space-between;">
+            <span class="toggle-label" style="font-size:11px; font-weight:600; color:var(--text-secondary);">Kannada Typing:</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <label class="switch">
+                <input type="checkbox" class="phonetic-typing-toggle">
+                <span class="slider"></span>
+              </label>
+              <span class="typing-mode-label">EN</span>
+            </div>
+          </div>
+
+          <!-- Logout Button -->
+          <button class="btn-logout-sidebar" onclick="confirmLogout()" title="Logout">
+            <span>🚪</span>
+            <span class="nav-label">Logout / ಲಾಗ್ ಔಟ್</span>
+          </button>
+        </div>
       </aside>
 
       <!-- Scrollable Tab Content Area -->
@@ -329,9 +334,6 @@
         <div class="admin-total-badge">
           Total Members: <span id="admin-total-count">0</span>
         </div>
-        <button class="btn-logout" onclick="confirmLogout()" title="Logout">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
       </div>
     </header>
 
@@ -349,6 +351,36 @@
           <span class="sidebar-icon">✉️</span>
           <span class="nav-label">Messages / ಸಂದೇಶಗಳು</span>
         </button>
+
+        <!-- Sidebar Controls Footer -->
+        <div class="sidebar-footer">
+          <!-- Language Selector -->
+          <div class="toggle-container">
+            <span class="toggle-label">Language / ಭಾಷೆ:</span>
+            <div class="lang-switch-buttons">
+              <button class="lang-btn active" data-lang="en" onclick="applyLanguage('en')">EN</button>
+              <button class="lang-btn" data-lang="kn" onclick="applyLanguage('kn')">ಕನ್ನಡ</button>
+            </div>
+          </div>
+          
+          <!-- Typing Toggle -->
+          <div class="toggle-container" style="flex-direction:row; align-items:center; justify-content:space-between;">
+            <span class="toggle-label" style="font-size:11px; font-weight:600; color:var(--text-secondary);">Kannada Typing:</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <label class="switch">
+                <input type="checkbox" class="phonetic-typing-toggle">
+                <span class="slider"></span>
+              </label>
+              <span class="typing-mode-label">EN</span>
+            </div>
+          </div>
+
+          <!-- Logout Button -->
+          <button class="btn-logout-sidebar" onclick="confirmLogout()" title="Logout">
+            <span>🚪</span>
+            <span class="nav-label">Logout / ಲಾಗ್ ಔಟ್</span>
+          </button>
+        </div>
       </aside>
 
       <!-- Admin Content Area -->
@@ -548,6 +580,6 @@
   </div>
 
   <!-- Core JS logic script (Cache-busted) -->
-  <script src="app.js?v=133"></script>
+  <script src="app.js?v=134"></script>
 </body>
 </html>
