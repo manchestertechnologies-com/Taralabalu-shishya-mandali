@@ -226,6 +226,11 @@
                   <datalist id="head-country-list"></datalist>
                 </div>
 
+                <div class="input-field">
+                  <label for="head-pincode">Pincode / ಪಿನಕೋಡ್ *</label>
+                  <input type="text" id="head-pincode" placeholder="Enter Pincode" maxlength="6" required oninput="onPincodeChange('head')">
+                </div>
+
                 <div class="form-row">
                   <div class="input-field width-50">
                     <label for="head-state">State / ರಾಜ್ಯ *</label>
@@ -249,13 +254,6 @@
                     <label for="head-ward">Ward / ವಾರ್ಡ್ / Nagara *</label>
                     <input type="text" id="head-ward" list="head-ward-list" placeholder="Type or Select Ward" required onchange="saveAutosaveForm()">
                     <datalist id="head-ward-list"></datalist>
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="input-field width-50">
-                    <label for="head-pincode">Pincode *</label>
-                    <input type="text" id="head-pincode" maxlength="6" required oninput="onPincodeChange('head')">
                   </div>
                 </div>
 
@@ -481,6 +479,11 @@
           </div>
 
           <div class="input-field">
+            <label for="edit-pincode">Pincode</label>
+            <input type="text" id="edit-pincode" placeholder="Enter Pincode" maxlength="6" required oninput="onPincodeChange('edit')">
+          </div>
+
+          <div class="input-field">
             <label for="edit-state">State</label>
             <input type="text" id="edit-state" list="edit-state-list" placeholder="Type or Select State" required onchange="onEditStateChanged()">
             <datalist id="edit-state-list"></datalist>
@@ -545,6 +548,6 @@
   </div>
 
   <!-- Core JS logic script (Cache-busted) -->
-  <script src="app.js?v=132"></script>
+  <script src="app.js?v=133"></script>
 </body>
 </html>

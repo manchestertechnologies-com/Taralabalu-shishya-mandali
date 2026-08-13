@@ -404,6 +404,11 @@ function renderFamilyMembers(count) {
             <datalist id="member-country-${i}-list"></datalist>
           </div>
 
+          <div class="input-field">
+            <label for="member-pincode-${i}">Pincode / ಪಿನಕೋಡ್ *</label>
+            <input type="text" id="member-pincode-${i}" placeholder="Enter Pincode" maxlength="6" required oninput="onPincodeChange('member-${i}')">
+          </div>
+
           <div class="form-row">
             <div class="input-field width-50">
               <label for="member-state-${i}">State / ರಾಜ್ಯ *</label>
@@ -427,13 +432,6 @@ function renderFamilyMembers(count) {
               <label for="member-ward-${i}">Ward / ವಾರ್ಡ್ / Nagara *</label>
               <input type="text" id="member-ward-${i}" list="member-ward-${i}-list" placeholder="Type or Select Ward" required onchange="saveAutosaveForm()">
               <datalist id="member-ward-${i}-list"></datalist>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="input-field width-50">
-              <label for="member-pincode-${i}">Pincode *</label>
-              <input type="text" id="member-pincode-${i}" maxlength="6" required oninput="onPincodeChange('member-${i}')">
             </div>
           </div>
 
@@ -670,38 +668,74 @@ function getBestMatch(inputName, candidateList) {
   return candidateList[0] || null;
 }
 
+const COUNTRY_ISO_MAP = {
+  'afghanistan': 'af', 'albania': 'al', 'algeria': 'dz', 'andorra': 'ad', 'angola': 'ao',
+  'argentina': 'ar', 'armenia': 'am', 'australia': 'au', 'austria': 'at', 'azerbaijan': 'az',
+  'bahamas': 'bs', 'bahrain': 'bh', 'bangladesh': 'bd', 'barbados': 'bb', 'belarus': 'by',
+  'belgium': 'be', 'belize': 'bz', 'benin': 'bj', 'bhutan': 'bt', 'bolivia': 'bo',
+  'bosnia': 'ba', 'botswana': 'bw', 'brazil': 'br', 'brunei': 'bn', 'bulgaria': 'bg',
+  'cambodia': 'kh', 'cameroon': 'cm', 'canada': 'ca', 'chile': 'cl', 'china': 'cn',
+  'colombia': 'co', 'costa rica': 'cr', 'croatia': 'hr', 'cuba': 'cu', 'cyprus': 'cy',
+  'czechia': 'cz', 'czech republic': 'cz', 'denmark': 'dk', 'dominica': 'dm', 'ecuador': 'ec',
+  'egypt': 'eg', 'estonia': 'ee', 'ethiopia': 'et', 'fiji': 'fj', 'finland': 'fi',
+  'france': 'fr', 'georgia': 'ge', 'germany': 'de', 'ghana': 'gh', 'greece': 'gr',
+  'guatemala': 'gt', 'haiti': 'ht', 'honduras': 'hn', 'hungary': 'hu', 'iceland': 'is',
+  'india': 'in', 'indonesia': 'id', 'iran': 'ir', 'iraq': 'iq', 'ireland': 'ie',
+  'israel': 'il', 'italy': 'it', 'jamaica': 'jm', 'japan': 'jp', 'jordan': 'jo',
+  'kazakhstan': 'kz', 'kenya': 'ke', 'kuwait': 'kw', 'latvia': 'lv', 'lebanon': 'lb',
+  'liberia': 'lr', 'libya': 'ly', 'liechtenstein': 'li', 'lithuania': 'lt', 'luxembourg': 'lu',
+  'madagascar': 'mg', 'malaysia': 'my', 'maldives': 'mv', 'mali': 'ml', 'malta': 'mt',
+  'mexico': 'mx', 'monaco': 'mc', 'mongolia': 'mn', 'montenegro': 'me', 'morocco': 'ma',
+  'myanmar': 'mm', 'nepal': 'np', 'netherlands': 'nl', 'new zealand': 'nz', 'nicaragua': 'ni',
+  'nigeria': 'ng', 'norway': 'no', 'oman': 'om', 'pakistan': 'pk', 'panama': 'pa',
+  'paraguay': 'py', 'peru': 'pe', 'philippines': 'ph', 'poland': 'pl', 'portugal': 'pt',
+  'qatar': 'qa', 'romania': 'ro', 'russia': 'ru', 'rwanda': 'rw', 'saudi arabia': 'sa',
+  'senegal': 'sn', 'serbia': 'rs', 'singapore': 'sg', 'slovakia': 'sk', 'slovenia': 'si',
+  'south africa': 'za', 'south korea': 'kr', 'spain': 'es', 'sri lanka': 'lk', 'sudan': 'sd',
+  'sweden': 'se', 'switzerland': 'ch', 'syria': 'sy', 'taiwan': 'tw', 'tajikistan': 'tj',
+  'tanzania': 'tz', 'thailand': 'th', 'tunisia': 'tn', 'turkey': 'tr', 'uganda': 'ug',
+  'ukraine': 'ua', 'united arab emirates': 'ae', 'uae': 'ae', 'united kingdom': 'gb', 'uk': 'gb',
+  'united states': 'us', 'usa': 'us', 'us': 'us', 'uruguay': 'uy', 'uzbekistan': 'uz',
+  'venezuela': 've', 'vietnam': 'vn', 'yemen': 'ye', 'zambia': 'zm', 'zimbabwe': 'zw'
+};
+
 async function onPincodeChange(cardPrefix) {
   const pincodeEl = document.getElementById(`${cardPrefix}-pincode`);
   if (!pincodeEl) return;
   
   const pincode = pincodeEl.value.trim();
-  if (pincode.length !== 6) return;
+  if (pincode.length < 3 || pincode.length > 10) return;
 
   if (!supabaseClient) {
     showToast('Database not connected. Cannot resolve pincode.', 'warning');
     return;
   }
 
+  // Identify country selection
+  const countryEl = document.getElementById(`${cardPrefix}-country`);
+  const countryNameSelected = countryEl ? countryEl.value.trim().toLowerCase() : '';
+  
+  // Default to India if no country is typed yet
+  const countryName = countryNameSelected || 'india';
+  const isIndia = countryName.startsWith('ind');
+
+  // Skip lookup if user is typing a partial Indian pincode
+  if (isIndia && pincode.length !== 6) return;
+
   showLoading(true, 'Resolving locations from Pincode...');
   
   try {
-    let countryId = null;
-    let stateId = null;
-    let districtId = null;
-    let talukId = null;
+    let stateName = '';
+    let districtName = '';
+    let talukName = '';
+    let wardName = '';
+    let countryNameResolved = isIndia ? 'India' : (countryEl ? countryEl.value.trim() : '');
 
-    if (PINCODE_LOOKUP[pincode]) {
-      const lookup = PINCODE_LOOKUP[pincode];
-      countryId = lookup.countryId;
-      stateId = lookup.stateId;
-      districtId = lookup.districtId;
-      talukId = lookup.talukId;
-    } else {
-      // Fetch from public India Postal Pincode API via multiple proxies for reliability
+    if (isIndia) {
       let data = null;
       const targetUrl = `https://api.postalpincode.in/pincode/${pincode}`;
       
-      // Try 1: corsproxy.io (returns raw JSON directly)
+      // Try 1: corsproxy.io
       try {
         const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
         if (res.ok) {
@@ -711,7 +745,7 @@ async function onPincodeChange(cardPrefix) {
         console.warn("corsproxy.io failed, trying allorigins:", err);
       }
       
-      // Try 2: allorigins.win (returns wrapped JSON)
+      // Try 2: allorigins.win
       if (!data) {
         try {
           const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
@@ -727,7 +761,7 @@ async function onPincodeChange(cardPrefix) {
         }
       }
       
-      // Try 3: Direct fetch (CORS fallback)
+      // Try 3: Direct fetch
       if (!data) {
         try {
           const res = await fetch(targetUrl);
@@ -741,72 +775,66 @@ async function onPincodeChange(cardPrefix) {
       
       if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
         const po = data[0].PostOffice[0];
-        const stateName = po.State;
-        const districtName = po.District;
-        const talukName = po.Block; // Block matches Taluk in post office details
-        
-        if (stateName && districtName && talukName) {
-          countryId = '1'; // India
-          
-          // Find state
-          const { data: states } = await supabaseClient
-            .from('states')
-            .select('id, name')
-            .ilike('name', `%${stateName}%`);
-          
-          if (states && states.length > 0) {
-            stateId = String(states[0].id);
-            
-            // Find district
-            const { data: districts } = await supabaseClient
-              .from('districts')
-              .select('id, name')
-              .eq('state_id', stateId);
-            
-            const matchedDistrict = getBestMatch(districtName, districts);
-            if (matchedDistrict) {
-              districtId = String(matchedDistrict.id);
-              
-              // Find taluk
-              const { data: taluks } = await supabaseClient
-                .from('taluks')
-                .select('id, name')
-                .eq('district_id', districtId);
-              
-              const matchedTaluk = getBestMatch(talukName, taluks);
-              if (matchedTaluk) {
-                talukId = String(matchedTaluk.id);
-              }
-            }
-          }
+        stateName = po.State;
+        districtName = po.District;
+        talukName = po.Block;
+        wardName = po.Name;
+      }
+    } else {
+      // Global zippopotam.us fallback for other countries
+      const countryCode = COUNTRY_ISO_MAP[countryName] || 'us';
+      const targetUrl = `https://api.zippopotam.us/${countryCode}/${pincode}`;
+      
+      let data = null;
+      try {
+        const res = await fetch(targetUrl);
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (err) {
+        console.warn("Zippopotam lookup failed:", err);
+      }
+
+      if (data && data.places && data.places.length > 0) {
+        const place = data.places[0];
+        stateName = place.state || '';
+        districtName = place['place name'] || '';
+        talukName = place['place name'] || '';
+        wardName = place['place name'] || '';
+        if (data.country) {
+          countryNameResolved = data.country;
         }
       }
     }
 
-    if (countryId && stateId && districtId && talukId) {
-      const countryEl = document.getElementById(`${cardPrefix}-country`);
+    if (stateName && districtName && talukName) {
       const stateEl = document.getElementById(`${cardPrefix}-state`);
       const districtEl = document.getElementById(`${cardPrefix}-district`);
       const talukEl = document.getElementById(`${cardPrefix}-taluk`);
+      const wardEl = document.getElementById(`${cardPrefix}-ward`);
 
       if (countryEl) {
-        countryEl.value = countryId;
+        countryEl.value = countryNameResolved;
         await onCascadeChange(cardPrefix, 'country');
       }
       
       if (stateEl) {
-        stateEl.value = stateId;
+        stateEl.value = stateName;
         await onCascadeChange(cardPrefix, 'state');
       }
       
       if (districtEl) {
-        districtEl.value = districtId;
+        districtEl.value = districtName;
         await onCascadeChange(cardPrefix, 'district');
       }
       
       if (talukEl) {
-        talukEl.value = talukId;
+        talukEl.value = talukName;
         await onCascadeChange(cardPrefix, 'taluk');
+      }
+      
+      if (wardEl) {
+        wardEl.value = wardName;
       }
       
       showToast('Pincode resolved successfully!', 'success');
@@ -1997,6 +2025,7 @@ async function openEditModal(dbId) {
   document.getElementById('edit-address').value = member.address;
   
   document.getElementById('edit-country').value = member.country_name || '';
+  document.getElementById('edit-pincode').value = member.pincode || '';
   document.getElementById('edit-state').value = member.state_name || '';
   document.getElementById('edit-district').value = member.district_name || '';
   document.getElementById('edit-taluk').value = member.taluk_name || '';
@@ -2042,6 +2071,7 @@ async function submitEditMember() {
   const age = document.getElementById('edit-age').value;
   
   const countryName = document.getElementById('edit-country').value.trim();
+  const pincode = document.getElementById('edit-pincode').value.trim();
   const stateName = document.getElementById('edit-state').value.trim();
   const districtName = document.getElementById('edit-district').value.trim();
   const talukName = document.getElementById('edit-taluk').value.trim();
@@ -2070,6 +2100,7 @@ async function submitEditMember() {
         district_id: districtId,
         taluk_id: talukId,
         ward_id: wardId,
+        pincode: pincode,
         address: address
       })
       .eq('id', id);
