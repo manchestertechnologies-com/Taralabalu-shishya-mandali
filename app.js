@@ -80,6 +80,7 @@ const VACHANAS_DATA = [
 document.addEventListener('DOMContentLoaded', async () => {
   initSupabase();
   setupEventListeners();
+  setupLanguageAndTyping();
   checkSession();
 });
 
@@ -235,19 +236,21 @@ async function showUserPortal() {
 }
 
 function switchUserTab(tabName) {
-  document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('#user-portal .sidebar-item').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tabName)) {
+      btn.classList.add('active');
+    }
+  });
   document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
   
   if (tabName === 'fill-form') {
     document.getElementById('tab-fill-form').classList.remove('hidden');
-    document.querySelector('.bottom-nav button:nth-child(1)').classList.add('active');
   } else if (tabName === 'view-cards') {
     document.getElementById('tab-view-cards').classList.remove('hidden');
-    document.querySelector('.bottom-nav button:nth-child(2)').classList.add('active');
     loadUserCards();
   } else if (tabName === 'welcome') {
     document.getElementById('tab-welcome').classList.remove('hidden');
-    document.querySelector('.bottom-nav button:nth-child(3)').classList.add('active');
   }
 }
 
@@ -444,6 +447,7 @@ function renderFamilyMembers(count) {
     container.insertAdjacentHTML('beforeend', cardHtml);
     populateDropdown(`member-country-${i}`, countriesList);
   }
+  applyLanguage(currentLanguage);
 }
 
 function updateMemberHeaderName(index) {
@@ -1560,16 +1564,19 @@ async function showAdminPortal() {
 }
 
 function switchAdminTab(tabName) {
-  document.querySelectorAll('#admin-portal .bottom-nav button').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('#admin-portal .sidebar-item').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tabName)) {
+      btn.classList.add('active');
+    }
+  });
   document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
   
   if (tabName === 'members') {
     document.getElementById('tab-admin-members').classList.remove('hidden');
-    document.querySelector('#admin-portal .bottom-nav button:nth-child(1)').classList.add('active');
     fetchAdminMembers();
   } else if (tabName === 'messages') {
     document.getElementById('tab-admin-messages').classList.remove('hidden');
-    document.querySelector('#admin-portal .bottom-nav button:nth-child(2)').classList.add('active');
   }
 }
 
@@ -2341,4 +2348,155 @@ function confirmLogout() {
     document.getElementById('login-page').classList.remove('hidden');
     showToast('Logged out successfully', 'info');
   }
+}
+
+// Floating Scroll Navigation
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function scrollToBottom() {
+  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+}
+
+// Language and Typing System
+let currentLanguage = 'en';
+let phoneticTypingEnabled = false;
+
+function setupLanguageAndTyping() {
+  // Load saved preferences
+  const savedLang = localStorage.getItem('tsm_language') || 'en';
+  const savedTyping = localStorage.getItem('tsm_phonetic_typing') === 'true';
+  
+  applyLanguage(savedLang);
+  
+  const typingToggle = document.getElementById('phonetic-typing-toggle');
+  if (typingToggle) {
+    typingToggle.checked = savedTyping;
+    phoneticTypingEnabled = savedTyping;
+    document.getElementById('typing-mode-label').textContent = savedTyping ? 'ಕನ್ನಡ' : 'EN';
+    
+    typingToggle.addEventListener('change', (e) => {
+      phoneticTypingEnabled = e.target.checked;
+      document.getElementById('typing-mode-label').textContent = phoneticTypingEnabled ? 'ಕನ್ನಡ' : 'EN';
+      localStorage.setItem('tsm_phonetic_typing', phoneticTypingEnabled ? 'true' : 'false');
+    });
+  }
+  
+  setupKannadaTransliteration();
+}
+
+function applyLanguage(lang) {
+  currentLanguage = lang;
+  localStorage.setItem('tsm_language', lang);
+  
+  // Update translation toggle buttons active state
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === lang);
+  });
+  
+  // 1. Translate elements with text containing " / "
+  const translatableElements = document.querySelectorAll('label, h3, h4, option, button, span, p, .form-group-title, .section-header');
+  translatableElements.forEach(el => {
+    let text = el.getAttribute('data-orig-text');
+    if (!text) {
+      text = el.innerText || el.textContent;
+      if (text && text.includes(' / ')) {
+        el.setAttribute('data-orig-text', text);
+      } else {
+        return;
+      }
+    }
+    
+    const parts = text.split(' / ');
+    if (parts.length >= 2) {
+      const originalText = text.trim();
+      const hasAsterisk = originalText.endsWith('*');
+      let translation = lang === 'en' ? parts[0].trim() : parts[1].trim();
+      if (hasAsterisk && !translation.endsWith('*')) {
+        translation += ' *';
+      }
+      el.textContent = translation;
+    }
+  });
+  
+  // 2. Translate placeholders containing " / "
+  const inputs = document.querySelectorAll('input, textarea');
+  inputs.forEach(el => {
+    let placeholder = el.getAttribute('data-orig-placeholder');
+    if (!placeholder) {
+      placeholder = el.getAttribute('placeholder');
+      if (placeholder && placeholder.includes(' / ')) {
+        el.setAttribute('data-orig-placeholder', placeholder);
+      } else {
+        return;
+      }
+    }
+    
+    const parts = placeholder.split(' / ');
+    if (parts.length >= 2) {
+      el.setAttribute('placeholder', lang === 'en' ? parts[0].trim() : parts[1].trim());
+    }
+  });
+}
+
+// Transliterate English phonetic string to Kannada using Google Input Tools API
+async function transliterateWord(word) {
+  if (!word || !/^[a-zA-Z]+$/.test(word)) return word;
+  try {
+    const url = `https://inputtools.google.com/request?text=${encodeURIComponent(word)}&itc=kn-t-i0-und&num=1`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1] && data[1][0][1][0]) {
+        return data[1][0][1][0];
+      }
+    }
+  } catch (err) {
+    console.warn("Transliteration service failed:", err);
+  }
+  return word;
+}
+
+// Listen to space/enter keypresses and automatically convert word to Kannada if phonetic typing is enabled
+function setupKannadaTransliteration() {
+  document.addEventListener('keydown', async (e) => {
+    if (!phoneticTypingEnabled) return;
+    
+    const target = e.target;
+    if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') return;
+    
+    // Ignore password, phone, dates, codes, etc.
+    if (target.type === 'password' || target.type === 'tel' || target.type === 'date' || 
+        target.id.includes('pincode') || target.id.includes('aadhar') || target.id.includes('phone')) {
+      return;
+    }
+    
+    if (e.key === ' ' || e.key === 'Spacebar') {
+      const val = target.value;
+      const caretPos = target.selectionStart;
+      
+      const textBefore = val.substring(0, caretPos);
+      const textAfter = val.substring(caretPos);
+      
+      const words = textBefore.split(/(\s+)/);
+      const lastWordIndex = words.length - 1;
+      const lastWord = words[lastWordIndex];
+      
+      if (lastWord && /^[a-zA-Z]+$/.test(lastWord)) {
+        e.preventDefault();
+        
+        const translated = await transliterateWord(lastWord);
+        words[lastWordIndex] = translated;
+        
+        const newTextBefore = words.join('') + ' ';
+        target.value = newTextBefore + textAfter;
+        
+        const newCaretPos = newTextBefore.length;
+        target.setSelectionRange(newCaretPos, newCaretPos);
+        
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
+  });
 }
